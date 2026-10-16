@@ -77,3 +77,7 @@ notes in `contrib/helix/RELEASE.md`. Existing release tags are not overwritten.
 The command calculations originated in `noahfraiture/helix.vim` under MIT.
 Its notice is retained in `LICENSE-helix.vim`. Neovim's existing licenses and
 third-party notices remain in force for their respective code.
+Official bundles include these notices and the matching application/dependency
+source. See [DISTRIBUTION.md](DISTRIBUTION.md). Packaging requires a clean tracked
+tree and the default bundled dependency build; retain the source when
+redistributing binaries, including statically linked LGPL components.

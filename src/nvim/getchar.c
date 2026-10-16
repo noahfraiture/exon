@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // getchar.c: Code related to getting a character from the user or a script
 // file, manipulations with redo buffer and stuff buffer.
 

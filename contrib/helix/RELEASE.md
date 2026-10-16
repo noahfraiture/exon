@@ -4,12 +4,15 @@ An opt-in native selection-first mode for Neovim 0.12.6. Enable it with:
 vim.o.helix = true
 ```
 
-This update fixes command arguments being intercepted by mappings, native Alt
-shortcuts, selection placement after Insert movement, cursors at column zero,
-Unicode case/word classification and unsupported Insert controls leaving divergent
-cursor contexts. Unused Lua history scaffolding and duplicate edit planning
-were removed. Optional `vim.helix.setup()` and custom surround pairs remain
-available. No per-delimiter mappings are needed for built-in pairs.
+This distribution update adds Neovim's main license, dependency notices and
+matching application/dependency source to every binary bundle. Version and
+intro output now identify the executable as a Helix preview. The installed
+smoke check verifies the notices, source files and fork identifier as well as
+editing. See `share/neovim-helix/DISTRIBUTION.md` for rebuilding and
+redistribution details.
+
+Optional `vim.helix.setup()` and custom surround pairs remain available.
+No per-delimiter mappings are needed for built-in pairs.
 
 The [architecture and feature review](https://github.com/noahfraiture/neovim/blob/helix/contrib/helix/REVIEW.md)
 records remaining gaps. This release remains based on 0.12.6; the planned

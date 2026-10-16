@@ -4,6 +4,11 @@ Initial verification baseline: `acfe165` (Neovim v0.12.6 base), 2026-10-16.
 Preview notes link the passing workflow for their exact source commit. Every
 preview repeats the platform, integration and sanitizer gates below.
 
+Preview 0.1.3 adds distribution notices and matching source to each bundle.
+Its installed-package check also requires the license/source files and verifies
+that version output identifies the executable as a Helix preview. This fixes
+packaging omissions; it does not expand the editor's compatibility guarantees.
+
 Preview 0.1.1 adds optional setup, key overrides, configurable surround pairs
 and a direct surround helper. Six additional functional tests cover defaults,
 string/callback/disabled mappings, custom pairs at multiple cursors with undo,

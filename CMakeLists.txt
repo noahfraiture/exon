@@ -148,7 +148,7 @@ endif()
 set(NVIM_VERSION_MAJOR 0)
 set(NVIM_VERSION_MINOR 12)
 set(NVIM_VERSION_PATCH 6)
-set(NVIM_VERSION_PRERELEASE "") # for package maintainers
+set(NVIM_VERSION_PRERELEASE "-helix-preview") # Identify this modified Neovim distribution.
 
 # API level
 set(NVIM_API_LEVEL 15)        # Native Helix extension APIs; upstream baseline is 14.

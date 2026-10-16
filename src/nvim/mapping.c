@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // mapping.c: Code for mappings and abbreviations.
 
 #include <assert.h>

@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 //
 // normal.c:    Contains the main routine for processing characters in command
 //              mode.  Communicates closely with the code in ops.c to handle

@@ -1,3 +1,4 @@
+-- Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 ---@diagnostic disable: no-unknown
 -- Generates C code to bridge API <=> Lua.
 

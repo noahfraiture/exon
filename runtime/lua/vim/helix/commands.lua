@@ -1,6 +1,7 @@
 -- Helix command calculations over a transient buffer snapshot.
 -- Native core owns persistent selections, editing, and undo.
 -- Positions here are zero-based half-open UTF-8 byte ranges.
+-- Derived from helix.vim under MIT; see contrib/helix/LICENSE-helix.vim.
 local M, Engine = {}, {}
 Engine.__index = Engine
 local function copy(t)

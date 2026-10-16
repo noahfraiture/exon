@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #pragma once
 
 typedef struct vim_state VimState;

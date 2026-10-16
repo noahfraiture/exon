@@ -23,7 +23,7 @@ compatibility boundary below before adopting it as your only editor.
 ## Build and try without changing your configuration
 
 Prebuilt Linux x86-64 (Ubuntu 24.04) and macOS Apple Silicon bundles are available
-in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.2).
+in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.3).
 Extract the matching archive and run its `bin/nvim` with the included configuration:
 
 ```sh
@@ -35,6 +35,8 @@ Extract the matching archive and run its `bin/nvim` with the included configurat
 Keep the bundle's `bin` and `share` directories together. Each archive includes
 a SHA-256 checksum and a smoke test. See the [verification record](contrib/helix/TESTING.md)
 for tested platforms, results and the compatibility boundary.
+Bundles include license notices and matching application/dependency source;
+see [distribution details](contrib/helix/DISTRIBUTION.md).
 
 Use the `helix` branch, not the upstream `master` branch:
 

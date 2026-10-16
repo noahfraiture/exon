@@ -1,3 +1,4 @@
+-- Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 -- vim: tw=78
 
 --- @class vim.option_meta

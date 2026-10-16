@@ -1,3 +1,4 @@
+-- Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 --- @brief
 --- Snippet expansion and navigation.
 ---

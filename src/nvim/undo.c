@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // undo.c: multi level undo facility
 
 // The saved lines are stored in a list of lists (one for each buffer):

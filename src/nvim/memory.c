@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // Various routines dealing with allocation and deallocation of memory.
 
 #include <assert.h>

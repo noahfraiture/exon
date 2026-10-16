@@ -2,6 +2,18 @@
 -- Uses a temporary Neovim state directory and never reads the user's init.lua.
 local binary = arg[1] or vim.v.progpath
 local config = arg[2]
+local prefix = vim.fs.dirname(vim.fs.dirname(binary))
+for _, name in ipairs({
+  'LICENSE.txt',
+  'LICENSE-helix.vim',
+  'DISTRIBUTION.md',
+  'SOURCE_COMMIT',
+  'source.tar.gz',
+  'licenses/unibilium/LGPLv3',
+  'licenses/xdiff-LGPL-2.1',
+}) do
+  assert(vim.fn.filereadable(prefix .. '/share/neovim-helix/' .. name) == 1, name .. ' missing')
+end
 local temporary = vim.fn.tempname()
 local child = vim.fn.jobstart(
   { binary, '--headless', '--embed', '-i', 'NONE', '-u', config or 'NONE' },
@@ -28,6 +40,8 @@ local function wait_for(check)
   assert(vim.wait(3000, check, 10), 'installed Helix smoke check timed out')
 end
 local ok, err = xpcall(function()
+  local version = request('nvim_exec2', 'version', { output = true }).output
+  assert(version:find('helix%-preview'), 'installed executable does not identify the fork')
   request('nvim_set_option_value', 'helix', true, {})
   wait_for(function()
     return request('nvim_get_mode').mode == 'h'

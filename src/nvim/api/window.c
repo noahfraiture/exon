@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

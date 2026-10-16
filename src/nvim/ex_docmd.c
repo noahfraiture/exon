@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // ex_docmd.c: functions for executing an Ex command line.
 
 #include <assert.h>
