@@ -1,8 +1,10 @@
 # Native Helix preview distribution
 
 This is a modified Neovim distribution maintained at
-<https://github.com/noahfraiture/neovim/tree/helix>. Report problems or contact
-the fork maintainer through <https://github.com/noahfraiture/neovim/issues>.
+<https://github.com/noahfraiture/neovim/tree/helix>. For Helix bug reports or
+source requests, contact the maintainer through
+<https://github.com/noahfraiture/helix.vim/issues> (the original plugin's tracker;
+the Neovim fork's issue tracker is disabled).
 It is not an official Neovim or Helix release.
 
 The changes add an optional native selection-first mode, selection/edit APIs,
