@@ -27,7 +27,9 @@ enum {
   MODE_SELECT      = 0x40,  ///< Select mode, use get_real_state()
   MODE_TERMINAL    = 0x80,  ///< Terminal mode
 
-  MAP_ALL_MODES    = 0xff,  ///< all mode bits used for mapping
+  MODE_HELIX       = 0x10000,  ///< Native selection-first normal mode
+
+  MAP_ALL_MODES    = 0x100ff,  ///< all mode bits used for mapping
 
   REPLACE_FLAG     = 0x100,  ///< Replace mode flag
   MODE_REPLACE     = REPLACE_FLAG | MODE_INSERT,

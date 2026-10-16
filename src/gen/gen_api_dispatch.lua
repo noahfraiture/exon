@@ -326,6 +326,7 @@ output:write([[
 #include "nvim/api/deprecated.h"
 #include "nvim/api/events.h"
 #include "nvim/api/extmark.h"
+#include "nvim/api/helix.h"
 #include "nvim/api/options.h"
 #include "nvim/api/tabpage.h"
 #include "nvim/api/ui.h"

@@ -63,6 +63,7 @@
 #include "nvim/getchar.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/highlight_defs.h"
 #include "nvim/highlight_group.h"
 #include "nvim/input.h"
@@ -7423,6 +7424,7 @@ static void ex_normal(exarg_T *eap)
   restore_current_state(&save_state);
 
   ex_normal_busy--;
+  helix_cursor_set(curwin);
 
   setmouse();
   ui_cursor_shape();  // may show different cursor shape

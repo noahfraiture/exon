@@ -1,0 +1,38 @@
+*helix.txt*     Native selection-first editing
+
+NATIVE HELIX MODE                                    *helix-mode* *'helix'*
+
+Enable the native mode in Lua: >lua
+    vim.o.helix = true
+<
+Or use :set helix / :set nohelix. The default is off.
+
+Helix normal mode selects text while moving. It reports "h" through mode()
+and nvim_get_mode(). Selection extension (v) reports "hv". Insert mode is real
+Neovim Insert mode and reports "i". Use the "h" mapping namespace: >lua
+    vim.keymap.set('h', '<Space>w', '<Cmd>write<CR>')
+    vim.keymap.set('h', 'Q', function() vim.helix.textobject('m') end)
+<
+mim selects inside the closest enclosing surround. mi( selects inside
+parentheses. ma/ includes the surrounding slash delimiters. miw selects a word.
+x selects lines; C adds a selection on the next line; comma keeps the primary.
+i/a/c insert/append/change at selections. u/U use native undo/redo.
+
+Special, readonly and unmodifiable buffers use Vim editing. Set b:helix to
+v:false to exclude another buffer. vim.pack can install companion plugins;
+the native mode itself requires this fork's executable and matching runtime.
+
+Completion retains only the primary cursor. Built-in snippets use Vim Select
+mode for placeholders. Multicursor typing and paste are available independently
+of completion. External snippet/completion plugins need adapters or validation.
+Extra selection undo metadata is session-local; text undo-file compatibility is
+preserved. Full Helix command and plugin compatibility is not implied.
+
+The additive fork APIs are nvim_helix_get_state(), nvim_helix_set_selections()
+and nvim_helix_apply_edits(). Ranges are half-open, use zero-based rows/byte
+columns, and must be ordered and non-overlapping. Primary indices are one-based.
+
+See HELIX.md in the source repository for installation, supported commands,
+examples, configuration, limitations and testing instructions.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

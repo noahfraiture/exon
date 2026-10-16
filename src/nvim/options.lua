@@ -4343,6 +4343,20 @@ local options = {
       varname = 'p_hl',
     },
     {
+      abbreviation = 'hx',
+      defaults = false,
+      desc = [=[
+        Enable native selection-first Helix editing in ordinary editable buffers.
+        Helix normal mode has its own `h` mapping namespace. Insert mode keeps
+        native insertion and its existing mappings. See |helix-mode|.
+      ]=],
+      full_name = 'helix',
+      scope = { 'global' },
+      short_desc = N_('enable native Helix selection-first editing'),
+      type = 'boolean',
+      varname = 'p_hx',
+    },
+    {
       abbreviation = 'hi',
       defaults = 10000,
       desc = [=[

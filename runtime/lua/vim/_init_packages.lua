@@ -53,6 +53,7 @@ end
 require('vim._core.shared')
 
 vim._submodules = {
+  helix = true,
   inspect = true,
   version = true,
   fs = true,

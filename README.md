@@ -1,3 +1,6 @@
+**Native Helix mode fork:** use the `helix` branch and set `vim.o.helix = true`.
+See [HELIX.md](HELIX.md) for installation, commands, tests and compatibility.
+
 <h1 align="center">
   <img src="https://raw.githubusercontent.com/neovim/neovim.github.io/master/static/logos/neovim-logo-300x87.png" alt="Neovim">
 

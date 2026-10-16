@@ -43,6 +43,7 @@
 #include "nvim/getchar.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/grid.h"
 #include "nvim/help.h"
 #include "nvim/highlight.h"
@@ -525,6 +526,12 @@ void normal_enter(bool cmdwin, bool noexmode)
 
 static void normal_prepare(NormalState *s)
 {
+  if (s->toplevel && !s->cmdwin && helix_prepare()) {
+    CLEAR_FIELD(s->ca);
+    s->ca.oap = &s->oa;
+    s->ca.count1 = 1;
+    return;
+  }
   CLEAR_FIELD(s->ca);  // also resets s->ca.retval
   s->ca.oap = &s->oa;
 
@@ -1073,6 +1080,12 @@ normal_end:
 static int normal_execute(VimState *state, int key)
 {
   NormalState *s = (NormalState *)state;
+  if (State == MODE_HELIX && helix_handle_key(key)) {
+    return 1;
+  }
+  if (State == MODE_HELIX) {
+    State = MODE_NORMAL;  // Explicit command-line/window command handoff.
+  }
   s->command_finished = false;
   s->ctrl_w = false;                  // got CTRL-W command
   s->old_col = curwin->w_curswant;
@@ -1433,6 +1446,10 @@ static int normal_check(VimState *state)
   quit_more = false;
 
   state_no_longer_safe(NULL);
+
+  if (s->toplevel && !s->cmdwin) {
+    helix_refresh();
+  }
 
   // If skip redraw is set (for ":" in wait_return()), don't redraw now.
   // If there is nothing in the stuff_buffer or do_redraw is true,

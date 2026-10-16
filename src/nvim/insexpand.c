@@ -41,6 +41,7 @@
 #include "nvim/getchar.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/highlight_defs.h"
 #include "nvim/highlight_group.h"
 #include "nvim/indent.h"
@@ -3387,6 +3388,9 @@ static void restore_orig_extmarks(void)
 /// @param list      the list of matches.
 static void set_completion(colnr_T startcol, list_T *list)
 {
+  if (helix_multicursor_insert()) {
+    helix_cursor_set(curwin);
+  }
   int flags = CP_ORIGINAL_TEXT;
   unsigned cur_cot_flags = get_cot_flags();
   bool compl_longest = (cur_cot_flags & kOptCotFlagLongest) != 0;

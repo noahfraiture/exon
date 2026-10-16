@@ -3,6 +3,7 @@
 #include <time.h>
 
 #include "nvim/extmark_defs.h"
+#include "nvim/helix_defs.h"
 #include "nvim/mark_defs.h"
 
 enum { UNDO_HASH_SIZE = 32, };  ///< Size in bytes of the hash used in the undo file.
@@ -53,6 +54,7 @@ struct u_header {
   int uh_walk;                    ///< used by undo_time()
   u_entry_T *uh_entry;            ///< pointer to first entry
   u_entry_T *uh_getbot_entry;     ///< pointer to where ue_bot must be set
+  HelixSnapshot *uh_helix;        ///< Native selection state (session-local)
   pos_T uh_cursor;                ///< cursor position before saving
   colnr_T uh_cursor_vcol;
   int uh_flags;                   ///< see below

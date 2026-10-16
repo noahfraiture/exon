@@ -38,6 +38,7 @@
 #include "nvim/getchar.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/grid.h"
 #include "nvim/grid_defs.h"
 #include "nvim/hashtab.h"
@@ -5550,6 +5551,7 @@ void free_wininfo(WinInfo *wip, buf_T *bp)
 /// @param tp  tab page "win" is in, NULL for current
 void win_free(win_T *wp, tabpage_T *tp)
 {
+  helix_window_free(wp);
   pmap_del(int)(&window_handles, wp->handle, NULL);
   clearFolding(wp);
 

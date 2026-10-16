@@ -1,0 +1,66 @@
+name: Native Helix
+on:
+  push:
+    branches: [helix]
+  pull_request:
+    branches: [helix]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .deps
+          key: helix-deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake.deps/**') }}
+      - name: Build
+        run: make CMAKE_BUILD_TYPE=RelWithDebInfo
+      - name: Native mode and editor regression tests
+        run: TEST_FILE=test/functional/editor make functionaltest
+      - name: API compatibility
+        run: TEST_FILE=test/functional/api make functionaltest
+      - name: Built-in snippets
+        run: TEST_FILE=test/functional/lua/snippet_spec.lua make functionaltest
+      - name: LSP completion
+        run: TEST_FILE=test/functional/plugin/lsp/completion_spec.lua make functionaltest
+      - name: Package and test the installed binary and configuration
+        run: contrib/helix/package.sh build "$RUNNER_TEMP/neovim-helix-${{ runner.os }}-${{ runner.arch }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neovim-helix-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/neovim-helix-*.tar.gz
+            ${{ runner.temp }}/neovim-helix-*.tar.gz.sha256
+
+  sanitizers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CC: clang
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build dependencies
+        run: make deps
+      - name: Build with address and undefined-behavior sanitizers
+        run: |
+          cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN_UBSAN=ON -DENABLE_LTO=OFF
+          cmake --build build-sanitized -j 4
+      - name: Native Helix tests under sanitizers
+        run: TEST_FILE=test/functional/editor/helix_spec.lua cmake --build build-sanitized --target functionaltest

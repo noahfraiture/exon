@@ -62,6 +62,7 @@
 #include "nvim/getchar_defs.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/grid.h"
 #include "nvim/grid_defs.h"
 #include "nvim/highlight_defs.h"
@@ -975,6 +976,7 @@ static void set_cursorpos(typval_T *argvars, typval_T *rettv, bool charcol)
   check_cursor(curwin);
   // Correct cursor for multi-byte character.
   mb_adjust_cursor();
+  helix_cursor_set(curwin);
 
   curwin->w_set_curswant = set_curswant;
   rettv->vval.v_number = 0;
@@ -6449,6 +6451,7 @@ static void set_position(typval_T *argvars, typval_T *rettv, bool charpos)
     }
     check_cursor(curwin);
     rettv->vval.v_number = 0;
+    helix_cursor_set(curwin);
   } else if (name[0] == '\'' && name[1] != NUL && name[2] == NUL) {
     // set mark
     if (setmark_pos((uint8_t)name[1], &pos, fnum, NULL) == OK) {

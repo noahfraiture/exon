@@ -35,6 +35,7 @@
 #include "nvim/getchar.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/grid.h"
 #include "nvim/grid_defs.h"
 #include "nvim/highlight.h"
@@ -366,6 +367,8 @@ static void insert_enter(InsertState *s)
     // and return false, causing `state_enter` to be called again.
   } while (!ins_esc(&s->count, s->cmdchar, s->nomove));
 
+  helix_insert_end();
+
   // Always update o_lnum, so that a "CTRL-O ." that adds a line
   // still puts the cursor back after the inserted text.
   if (ins_at_eol) {
@@ -565,6 +568,20 @@ static int insert_execute(VimState *state, int key)
 
   if (key == K_IGNORE || key == K_NOP) {
     return -1;  // get another key
+  }
+  if (helix_multicursor_insert() && (key == Ctrl_N || key == Ctrl_P || key == Ctrl_X)) {
+    helix_cursor_set(curwin);  // Legacy completion has one context.
+  }
+  if (helix_multicursor_insert() && key >= ' ' && !IS_SPECIAL(key)) {
+    char *replacement = do_insert_char_pre(key);
+    if (replacement != NULL) {
+      helix_insert_text(replacement);
+      xfree(replacement);
+      return 1;
+    }
+  }
+  if (helix_insert_key(key)) {
+    return 1;
   }
   s->c = key;
 

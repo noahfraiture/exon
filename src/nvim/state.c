@@ -15,6 +15,7 @@
 #include "nvim/ex_getln.h"
 #include "nvim/getchar.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/insexpand.h"
 #include "nvim/keycodes.h"
 #include "nvim/log.h"
@@ -215,6 +216,11 @@ void get_mode(char *buf)
     }
     if ((State & MODE_CMDLINE) && cmdline_overstrike()) {
       buf[i++] = 'r';
+    }
+  } else if (State & MODE_HELIX) {
+    buf[i++] = 'h';
+    if (helix_extending()) {
+      buf[i++] = 'v';
     }
   } else if (State & MODE_TERMINAL) {
     buf[i++] = 't';
