@@ -126,10 +126,11 @@ local function class(text, p, long)
   if c == '' or c:match('%s') then
     return 0
   end
-  if long or #c > 1 or c:match('[%w_]') then
+  local kind = vim.fn.charclass(c)
+  if long and kind > 0 then
     return 1
   end
-  return 2
+  return kind
 end
 function M.new(text, position, opts)
   opts = opts or {}
@@ -141,7 +142,6 @@ function M.new(text, position, opts)
     pending = '',
     count = '',
     register = {},
-    history_limit = opts.history_limit or 200,
     display_width = opts.display_width,
     surrounds = opts.surrounds,
   }, Engine)
@@ -187,13 +187,6 @@ function Engine:normalize()
     end
   end
 end
-function Engine:snapshot()
-  return { text = self.text, selections = copy(self.selections), primary = self.primary }
-end
-function Engine:checkpoint() end -- Undo belongs to Neovim core.
-function Engine:history()
-  error('use native undo')
-end
 -- Edits are computed against one snapshot, sorted once, and applied together.
 -- Optional ranges permit paste/backspace without mutating the undo selections.
 function Engine:replace(values, insertion, ranges)
@@ -221,6 +214,9 @@ function Engine:replace(values, insertion, ranges)
       combined[#combined + 1] = e
     end
   end
+  if self.on_edit then
+    self.on_edit(combined, self.text)
+  end
   local chunks, sels, previous, delta, primary = {}, {}, 0, 0, 1
   for i, e in ipairs(combined) do
     chunks[#chunks + 1] = self.text:sub(previous + 1, e.start)
@@ -235,16 +231,6 @@ function Engine:replace(values, insertion, ranges)
   end
   chunks[#chunks + 1] = self.text:sub(previous + 1)
   local text = table.concat(chunks)
-  if text ~= self.text then
-    if self.mode == 'insert' then
-      if self.insert_before then
-        self:checkpoint(self.insert_before)
-        self.insert_before = nil
-      end
-    else
-      self:checkpoint()
-    end
-  end
   self.text, self.selections, self.primary = text, sels, primary
   if not insertion then
     for _, s in ipairs(sels) do
@@ -268,7 +254,6 @@ function Engine:paste_values()
   return table.concat(self.register, '\n')
 end
 function Engine:insert(after, change)
-  self.insert_before = self:snapshot()
   self.mode = 'insert'
   if change then
     self:yank()
@@ -333,7 +318,7 @@ function Engine:move_word_start(key, count)
   local text, long = self.text, key == 'W'
   local function category(p)
     if text:sub(p + 1, p + 1) == '\n' then
-      return 3
+      return -1
     end
     return class(text, p, long)
   end
@@ -348,10 +333,10 @@ function Engine:move_word_start(key, count)
         end
         local previous = M.prev(text, head)
         -- Newline boundaries start a new word selection on the following line.
-        while head < #text and category(head) == 3 do
+        while head < #text and category(head) == -1 do
           previous, head = head, M.next(text, head)
         end
-        if category(previous) == 3 then
+        if category(previous) == -1 then
           anchor = head
         end
         local start = head
@@ -718,7 +703,7 @@ function Engine:surround(key)
   self:replace(values)
 end
 function Engine:line_insert(key)
-  self.insert_before, self.mode = self:snapshot(), 'insert'
+  self.mode = 'insert'
   local ranges = {}
   for i, s in ipairs(self.selections) do
     local a, b = line_bounds(self.text, self:head(s))
@@ -751,7 +736,7 @@ function Engine:input(key)
         s.finish = M.next(self.text, s.start)
       end
     end
-    self.mode, self.pending, self.count, self.insert_before = 'normal', '', '', nil
+    self.mode, self.pending, self.count = 'normal', '', ''
     self:normalize()
     return
   end
@@ -761,7 +746,7 @@ function Engine:input(key)
       self:backspace(false)
     elseif key == '<C-w>' then
       self:backspace(false, true)
-    elseif key == '<Del>' or key == '<C-d>' then
+    elseif key == '<Del>' then
       self:backspace(true)
     elseif key == '<CR>' or key == '<C-j>' then
       self:replace('\n', true)
@@ -794,7 +779,9 @@ function Engine:input(key)
   if self.pending == 'mi' or self.pending == 'ma' then
     self:textobject(key, self.pending == 'ma', count)
   elseif self.pending == 'ms' then
-    self:surround(key)
+    if key:sub(1, 1) ~= '<' or #key == 1 then
+      self:surround(key)
+    end
   elseif self.pending == 'm' then
     if key == 'i' or key == 'a' or key == 's' then
       self.pending = 'm' .. key
@@ -854,10 +841,6 @@ function Engine:input(key)
       if #self.register > 0 then
         self:replace(self:paste_values())
       end
-    elseif key == 'u' then
-      self:history(false)
-    elseif key == 'U' then
-      self:history(true)
     elseif key == 'C' or key == '<A-C>' or key == '<M-C>' then
       for _ = 1, count do
         self:add_cursor(key == 'C' and 1 or -1)
@@ -911,13 +894,16 @@ function Engine:input(key)
       for i, s in ipairs(self.selections) do
         local value = self.text:sub(s.start + 1, s.finish)
         if key == '~' then
-          value = value:gsub('%a', function(c)
-            return c:match('%l') and c:upper() or c:lower()
-          end)
+          local characters = vim.fn.split(value, [[\zs]])
+          for j, c in ipairs(characters) do
+            local lower = vim.fn.tolower(c)
+            characters[j] = c == lower and vim.fn.toupper(c) or lower
+          end
+          value = table.concat(characters)
         elseif key == '`' then
-          value = value:lower()
+          value = vim.fn.tolower(value)
         else
-          value = value:upper()
+          value = vim.fn.toupper(value)
         end
         values[i] = value
       end

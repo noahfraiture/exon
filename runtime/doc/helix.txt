@@ -25,6 +25,7 @@ keymaps entries are strings, callbacks or false (<Nop>), in the "h" namespace.
 Omitted surrounds are retained on repeated setup; surrounds={} clears custom
 pairs. Supplied keymaps update their keys, leaving other mappings alone.
 vim.helix.surround('(') wraps every selection directly.
+Command argument keys are literal, so a mapping of "w" does not affect miw.
 
 Helix normal mode selects text while moving. It reports "h" through mode()
 and nvim_get_mode(). Selection extension (v) reports "hv" through mode(1).
@@ -45,6 +46,10 @@ the native mode itself requires this fork's executable and matching runtime.
 Completion retains only the primary cursor. Built-in snippets use Vim Select
 mode for placeholders. Multicursor typing and paste are available independently
 of completion. External snippet/completion plugins need adapters or validation.
+Other native Insert commands outside the vectorized set (Ctrl-U, indentation,
+literal/digraph input, etc.) keep only the primary cursor. Ctrl-D retains native
+Insert indentation behavior. The o/O commands do not reproduce native open-line
+indentation yet. These remain limitations of the 0.12 preview.
 Extra selection undo metadata is session-local; text undo-file compatibility is
 preserved. Full Helix command and plugin compatibility is not implied.
 

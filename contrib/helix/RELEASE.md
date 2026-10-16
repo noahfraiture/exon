@@ -4,11 +4,17 @@ An opt-in native selection-first mode for Neovim 0.12.6. Enable it with:
 vim.o.helix = true
 ```
 
-This update adds optional `vim.helix.setup()` configuration, custom surround
-pairs shared by `ms`/`mi`/`ma`/`mim`, key overrides, and `vim.helix.surround()`.
-`ms` already accepts the next delimiter without per-character mappings.
-Calling `vim.helix.setup()` without options enables the defaults. This release
-remains based on 0.12.6; the planned integration with 0.13 is not included.
+This update fixes command arguments being intercepted by mappings, native Alt
+shortcuts, selection placement after Insert movement, cursors at column zero,
+Unicode case/word classification and unsupported Insert controls leaving divergent
+cursor contexts. Unused Lua history scaffolding and duplicate edit planning
+were removed. Optional `vim.helix.setup()` and custom surround pairs remain
+available. No per-delimiter mappings are needed for built-in pairs.
+
+The [architecture and feature review](https://github.com/noahfraiture/neovim/blob/helix/contrib/helix/REVIEW.md)
+records remaining gaps. This release remains based on 0.12.6; the planned
+integration with 0.13 is not included. Native Insert commands outside the
+vectorized set keep only the primary cursor, as completion already does.
 
 Core owns the mode, selections, edit transactions and undo metadata. Bundled Lua
 implements commands, including `mim`, `ma/`, `x`, word motions and multicursor

@@ -12,6 +12,16 @@ setup. The installed-package smoke test also exercises setup and a custom pair.
 The baseline counts below describe the initial build; each preview's workflow
 logs contain its current counts. The preview still uses the 0.12.6 engine.
 
+The follow-up architecture review adds regressions for literal command
+arguments under mappings, native Alt shortcuts, Insert cursor placement and
+empty-line cursor preservation, native-control fallback/undo, Unicode case
+conversion, parser cancellation and special delimiter keys. The dedicated
+suite now contains 47 tests, including native Unicode word classes and
+'iskeyword'. A colorscheme-reload control also passes without
+a production change. See [REVIEW.md](REVIEW.md) for the feature inventory and
+the architectural work still required; passing these tests does not establish
+complete Helix parity.
+
 The [Native Helix workflow run](https://github.com/noahfraiture/neovim/actions/runs/38859243012)
 passed every job. It built the executable and matching runtime from this source.
 Preview releases link their own passing workflow and publish that run's exact

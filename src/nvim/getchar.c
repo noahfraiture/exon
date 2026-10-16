@@ -36,6 +36,7 @@
 #include "nvim/getchar.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/input.h"
 #include "nvim/insexpand.h"
 #include "nvim/keycodes.h"
@@ -1698,7 +1699,7 @@ int vgetc(void)
       // Also do not do this for mouse keys, as terminals encode mouse events as
       // CSI sequences, and MOD_MASK_ALT has a meaning even for unmapped mouse keys.
       if (!no_mapping && KeyTyped && mod_mask == MOD_MASK_ALT
-          && !(State & MODE_TERMINAL) && !is_mouse_key(c)) {
+          && !(State & (MODE_TERMINAL | MODE_HELIX)) && !is_mouse_key(c)) {
         mod_mask = 0;
         int len = ins_char_typebuf(c, 0, false);
         ins_char_typebuf(ESC, 0, false);
@@ -2213,6 +2214,7 @@ static int handle_mapping(int *keylenp, const bool *timedout, int *mapdepth)
   // - in Ctrl-X mode, and we get a valid char for that mode
   int tb_c1 = typebuf.tb_buf[typebuf.tb_off];
   if (no_mapping == 0
+      && !(local_State == MODE_HELIX && helix_pending_argument())
       && (no_zero_mapping == 0 || tb_c1 != '0')
       && (typebuf.tb_maplen == 0 || is_plug_map
           || (!(typebuf.tb_noremap[typebuf.tb_off] & (RM_NONE|RM_ABBR))))

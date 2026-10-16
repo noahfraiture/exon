@@ -23,7 +23,7 @@ compatibility boundary below before adopting it as your only editor.
 ## Build and try without changing your configuration
 
 Prebuilt Linux x86-64 (Ubuntu 24.04) and macOS Apple Silicon bundles are available
-in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.1).
+in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.2).
 Extract the matching archive and run its `bin/nvim` with the included configuration:
 
 ```sh
@@ -126,6 +126,8 @@ attached language server supports completion; it does not install servers.
 Selections use Unicode grapheme boundaries, including combining characters and
 ZWJ emoji. Overlapping selections and identical insertion gaps merge. Adjacent
 selections remain distinct until an edit brings them to the same position.
+Word classes use Neovim's Unicode classification and respect 'iskeyword'.
+Case transforms also use Neovim's native Unicode conversion.
 
 Textobjects are lexical delimiter/word/paragraph objects. They do not yet use
 tree-sitter to distinguish syntax nodes or delimiters inside comments/strings.
@@ -135,6 +137,8 @@ Regular expressions currently use Neovim's regex syntax.
 
 `h` is the new mapping namespace. Existing `n` mappings remain Vim mappings.
 Insert mode uses the existing `i` namespace and real Insert-mode events.
+Command arguments are read literally: remapping `i` or `w` does not change
+`miw`, and remapping `(` does not change the delimiter read by `ms(`.
 
 Defaults already include `ms(`, `ms[`, `ms"`, `ms/`, etc.: `ms` reads its next
 character. The following setup only adds custom pairs and optional shortcuts:
@@ -202,12 +206,21 @@ tabs, basic autoindent and insert mappings are supported. Context-sensitive
 multicursor completion/snippet groups and full indent-expression behavior are
 not implemented. External completion/snippet plugins need their own workflow
 tests or adapters; loading successfully is not a compatibility certification.
+Native Insert keys outside the vectorized set (for example `Ctrl-U`, indent
+controls and literal/digraph entry) retain only the primary cursor. Previously
+applied edits at other cursors remain part of undo. This avoids continuing with
+divergent insertion contexts; it is a limitation of the legacy 0.12 bridge,
+not full multicursor support for these commands. `Ctrl-D` retains its native
+Insert indentation behavior rather than changing meaning with cursor count.
 
 Other current boundaries include macro/dot-repeat parity, full Helix command
 coverage, mouse selection parity and syntax-aware textobjects. Persistent undo
 files retain Neovim's existing format: text undo survives restart; the extra
 selection snapshots are session-local. The command layer currently uses a
 temporary document snapshot, so very large files need further performance work.
+The `o`/`O` commands currently insert lines without reproducing native open-line
+indentation. See the [architecture and feature review](contrib/helix/REVIEW.md)
+for the remaining gaps and why upstream 0.13 integration is the next priority.
 
 ## Selection APIs
 

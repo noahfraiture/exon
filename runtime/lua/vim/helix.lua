@@ -9,6 +9,12 @@ local registers = {}
 local last_search
 local configuration = { surrounds = {} }
 
+--- @private
+function M._pending_argument()
+  local parser = parsers[api.nvim_get_current_win()]
+  return parser ~= nil and parser.buffer == api.nvim_get_current_buf() and parser.pending ~= ''
+end
+
 --- @class vim.helix.Opts
 --- @field enabled? boolean Enable the mode (default true).
 --- @field surrounds? table<string, [string, string]> Custom {open, close} pairs.
@@ -119,39 +125,18 @@ local function model(insert)
   end
   e:normalize()
   local batches = {}
-  local replace = e.replace
-  function e:replace(values, insertion, ranges)
-    self:normalize()
-    local edits = {}
-    for i, s in ipairs(ranges or self.selections) do
-      local value = type(values) == 'table' and (values[i] or values[1] or '') or values
-      if self.text:sub(s.start + 1, s.finish) ~= value then
-        edits[#edits + 1] = { start = s.start, finish = s.finish, value = value }
-      end
-    end
-    table.sort(edits, function(a, b)
-      return a.start < b.start
-    end)
-    local combined = {}
-    for _, edit in ipairs(edits) do
-      local last = combined[#combined]
-      if last and (edit.start < last.finish or edit.start == last.start) then
-        assert(last.value == '' and edit.value == '', 'overlapping Helix edits')
-        last.finish = math.max(last.finish, edit.finish)
-      else
-        combined[#combined + 1] = edit
-      end
-    end
+  e.on_edit = function(edits, source)
     local batch = {}
-    for _, edit in ipairs(combined) do
-      local sr, sc = commands.position(self.text, edit.start)
-      local er, ec = commands.position(self.text, edit.finish)
-      batch[#batch + 1] = { sr, sc, er, ec, vim.split(edit.value, '\n', { plain = true }) }
+    for _, edit in ipairs(edits) do
+      if source:sub(edit.start + 1, edit.finish) ~= edit.value then
+        local sr, sc = commands.position(source, edit.start)
+        local er, ec = commands.position(source, edit.finish)
+        batch[#batch + 1] = { sr, sc, er, ec, vim.split(edit.value, '\n', { plain = true }) }
+      end
     end
     if #batch > 0 then
       batches[#batches + 1] = batch
     end
-    replace(self, values, insertion, ranges)
   end
   return e, parser, batches
 end
@@ -460,6 +445,12 @@ for group, link in pairs({ HelixSelection = 'Visual', HelixCursor = 'Cursor' }) 
   api.nvim_set_hl(0, group, { default = true, link = link })
 end
 local group = api.nvim_create_augroup('nvim.helix', { clear = true })
+api.nvim_create_autocmd({ 'BufLeave', 'WinLeave' }, {
+  group = group,
+  callback = function()
+    parsers[api.nvim_get_current_win()] = nil
+  end,
+})
 api.nvim_create_autocmd('WinClosed', {
   group = group,
   callback = function(ev)

@@ -3,6 +3,12 @@
 Upstream base: Neovim v0.12.6, `779c36969e31080503be2dfccbcc3f999e289606`.
 The native feature branch is `helix`; `master` remains available for upstream.
 
+Upstream 0.13 already has native multicursors ([merged implementation](https://github.com/neovim/neovim/pull/41587)).
+The 0.12 bridge is a preview, not the intended long-term multicursor backend.
+Prioritize integration with upstream contexts, insertion, completion and repeat
+before expanding the legacy engine. See [REVIEW.md](REVIEW.md) for the feature
+inventory, reproduced defects and acceptance criteria for that migration.
+
 ## Boundaries
 
 * `src/nvim/helix.c` owns window/buffer selection collections, mark tracking,
@@ -13,7 +19,8 @@ The native feature branch is `helix`; `master` remains available for upstream.
   over transient snapshots. There is no independent document or undo history.
 * `contrib/helix/init.lua` is an optional configuration, not core policy.
 
-Core connections are concentrated in state/mapping dispatch, native Insert
+Core connections are concentrated in state/mapping dispatch (including command
+arguments and Alt-key normalization in `getchar.c`), native Insert
 mode, undo header lifecycle, cursor entry points and window/buffer cleanup.
 These are the rebase hotspots. Keep their changes small; do not fork copies of
 the upstream insertion, mapping or undo implementations.

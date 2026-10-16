@@ -352,6 +352,18 @@ bool helix_extending(void)
   return hw && hw->extending;
 }
 
+/// Argument keys belong to the active command, not the top-level mapping table.
+bool helix_pending_argument(void)
+{
+  Error err = ERROR_INIT;
+  Object result = NLUA_EXEC_STATIC("return require('vim.helix')._pending_argument()",
+                                   ((Array)ARRAY_DICT_INIT), kRetNilBool, NULL, &err);
+  bool pending = result.type == kObjectTypeBoolean && result.data.boolean;
+  api_free_object(result);
+  api_clear_error(&err);
+  return pending;
+}
+
 /// Explicit legacy cursor APIs are intentional jumps. Buffer edits instead
 /// transform the extmarks and never collapse a window's selection collection.
 void helix_cursor_set(win_T *wp)
@@ -710,9 +722,15 @@ bool helix_insert_key(int key)
   }
   if (!(key >= ' ' && !IS_SPECIAL(key)) && key != K_BS && key != Ctrl_H
       && key != K_DEL && key != K_KDEL && key != CAR && key != NL
-      && key != TAB && key != Ctrl_W && key != Ctrl_D
+      && key != TAB && key != Ctrl_W
       && key != K_LEFT && key != K_RIGHT && key != K_UP && key != K_DOWN
       && key != K_HOME && key != K_END) {
+    if (key != ESC && key != Ctrl_C && key != K_EVENT && key != K_IGNORE && key != K_NOP
+        && key != K_LUA && key != K_COMMAND) {
+      // A native control may edit or move outside our vector transaction.
+      // Keep one authoritative Insert context instead of silently diverging.
+      helix_cursor_set(curwin);
+    }
     return false;
   }
   Error err = ERROR_INIT;
@@ -767,7 +785,12 @@ void helix_insert_end(void)
     HelixSelection *items = xcalloc(hw->count, sizeof(*items));
     for (size_t i = 0; i < hw->count; i++) {
       HelixSelection s = selection_at(curwin, hw, i);
-      items[i].start = previous_position(curbuf, s.start);
+      items[i].start = s.start;
+      if (i == hw->primary) {
+        items[i].start = clamp_position(curbuf, curwin->w_cursor);
+      } else if (s.start.col > 0) {
+        items[i].start = previous_position(curbuf, s.start);
+      }
       items[i].end = next_position(curbuf, items[i].start);
     }
     store_selections(curwin, hw, items, hw->count, hw->primary, false);
