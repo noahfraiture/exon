@@ -62,7 +62,7 @@
       });
 
       overlays.default = final: prev: {
-        neovim-helix = mkPackage final;
+        neovim-helix = mkPackage prev;
       };
     };
 }
