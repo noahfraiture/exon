@@ -72,6 +72,17 @@ Publication requires both platform jobs and the sanitizer job to succeed. The
 release uses that same run's archives and source commit, with checksums and the
 notes in `contrib/helix/RELEASE.md`. Existing release tags are not overwritten.
 
+## Nix packaging
+
+`flake.nix` reuses the Neovim recipe and remote-plugin integration from the
+Nixpkgs revision in `flake.lock`; it substitutes this fork's source and adds
+Helix functional/installed smoke checks. `Native Helix Nix` checks Linux x86-64
+and macOS ARM64. The other exported systems are evaluated, not native-built in
+that workflow. Keep the `lua` and parser attributes so NixOS/Home Manager can
+wrap the package normally. After changing the upstream base or Nixpkgs lock,
+recheck the recipe's patches, dependencies and parser versions and run
+`nix flake check`. See [NIX.md](NIX.md) for the input/package interface.
+
 ## Licensing
 
 The command calculations originated in `noahfraiture/helix.vim` under MIT.

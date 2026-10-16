@@ -22,6 +22,20 @@ compatibility boundary below before adopting it as your only editor.
 
 ## Build and try without changing your configuration
 
+With Nix, build or try the fork directly:
+
+```sh
+nix build github:noahfraiture/neovim/helix
+./result/bin/nvim -u NONE --cmd 'set helix'
+# Or run without creating ./result:
+nix run github:noahfraiture/neovim/helix -- -u NONE --cmd 'set helix'
+```
+
+The flake exports `packages.<system>.default` and `neovim-helix`, plus
+`overlays.default`. See [Nix installation](contrib/helix/NIX.md) for flake-input,
+NixOS and Home Manager examples. Nix builds the fork from source with its
+matching runtime; Helix remains opt-in through `vim.helix.setup()` or the boolean.
+
 Prebuilt Linux x86-64 (Ubuntu 24.04) and macOS Apple Silicon bundles are available
 in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.3).
 Extract the matching archive and run its `bin/nvim` with the included configuration:

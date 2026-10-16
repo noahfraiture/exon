@@ -94,6 +94,16 @@ for the user-facing boundaries and the small manual acceptance test.
 
 ## Reproduce installed-package checks
 
+A local Linux x86-64 Nix source build passed its parser checks, all 47 Helix
+tests, version validation and installed configuration smoke test.
+
+For the source-built Nix package, `nix flake check` runs the locked Nixpkgs
+parser checks, the dedicated Helix suite and an installed configuration smoke
+test. Nix packages retain the root/MIT notices and use dependencies from the
+locked derivations; the separate download-archive license/source layout is
+checked only for release archives. The `Native Helix Nix` workflow builds Linux
+x86-64 and macOS ARM64 and evaluates all three exported systems.
+
 After extracting a preview archive, change into its top-level directory:
 
 ```sh

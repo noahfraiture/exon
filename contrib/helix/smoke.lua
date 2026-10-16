@@ -3,15 +3,19 @@
 local binary = arg[1] or vim.v.progpath
 local config = arg[2]
 local prefix = vim.fs.dirname(vim.fs.dirname(binary))
-for _, name in ipairs({
-  'LICENSE.txt',
-  'LICENSE-helix.vim',
-  'DISTRIBUTION.md',
-  'SOURCE_COMMIT',
-  'source.tar.gz',
-  'licenses/unibilium/LGPLv3',
-  'licenses/xdiff-LGPL-2.1',
-}) do
+local layout = arg[3] or 'archive'
+assert(layout == 'archive' or layout == 'nix', 'unknown distribution layout')
+local required = { 'LICENSE.txt', 'LICENSE-helix.vim', 'init.lua', 'smoke.lua' }
+if layout == 'archive' then
+  vim.list_extend(required, {
+    'DISTRIBUTION.md',
+    'SOURCE_COMMIT',
+    'source.tar.gz',
+    'licenses/unibilium/LGPLv3',
+    'licenses/xdiff-LGPL-2.1',
+  })
+end
+for _, name in ipairs(required) do
   assert(vim.fn.filereadable(prefix .. '/share/neovim-helix/' .. name) == 1, name .. ' missing')
 end
 local temporary = vim.fn.tempname()
