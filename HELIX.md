@@ -7,6 +7,11 @@ Enable it in `init.lua`:
 vim.o.helix = true
 ```
 
+For optional command configuration, use `vim.helix.setup()` instead. Calling it
+without options enables all defaults; no per-delimiter configuration is needed.
+This preview is still based on 0.12.6. Integration with 0.13's upstream
+multicursor machinery is planned, not included in this release.
+
 The mode, selection collection, position tracking, edit transactions and undo
 metadata live in Neovim core. Bundled Lua implements the commands. No editing
 plugin or normal-mode keymap translation is required. `mim`, `mi(`, `ma/`, `x`,
@@ -18,7 +23,7 @@ compatibility boundary below before adopting it as your only editor.
 ## Build and try without changing your configuration
 
 Prebuilt Linux x86-64 (Ubuntu 24.04) and macOS Apple Silicon bundles are available
-in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.0).
+in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.1).
 Extract the matching archive and run its `bin/nvim` with the included configuration:
 
 ```sh
@@ -131,6 +136,42 @@ Regular expressions currently use Neovim's regex syntax.
 `h` is the new mapping namespace. Existing `n` mappings remain Vim mappings.
 Insert mode uses the existing `i` namespace and real Insert-mode events.
 
+Defaults already include `ms(`, `ms[`, `ms"`, `ms/`, etc.: `ms` reads its next
+character. The following setup only adds custom pairs and optional shortcuts:
+
+```lua
+vim.g.mapleader = ' '
+vim.helix.setup({
+  -- enabled = true is the default.
+  surrounds = {
+    c = { '/*', '*/' }, -- msc adds; mic selects inside; mac selects around.
+    t = { '<em>', '</em>' }, -- mst, mit, mat; mim also recognizes this pair.
+  },
+  keymaps = {
+    ['<leader>s'] = 'ms', -- Space s, then any delimiter/custom key.
+    ['<leader>w'] = '<Cmd>write<CR>',
+    ['<leader>i'] = function() vim.helix.textobject('m') end,
+  },
+})
+```
+
+Custom entries supplement the built-in pairs (or override their keys). Pair
+keys are one character; `m`, `w`, `W` and `p` are reserved textobjects. Delimiters
+may contain multiple characters, but must be nonempty single-line strings
+without NUL. The same registry serves adding, inside/around selection and the
+nearest-surround objects. Matching remains lexical, not syntax-aware.
+Adding surrounds is supported; surround replacement/deletion (`mr`/`md`) remains
+unimplemented.
+
+`keymaps` values may be strings, callbacks or `false` (`<Nop>`). They use the `h`
+namespace and do not change Insert mappings. Use ordinary `vim.keymap.set()`
+when you need options such as descriptions, expressions or buffer-local maps.
+On another setup call, omitted surrounds are retained; `surrounds = {}` clears
+custom pairs. Supplied keymaps update their keys and leave other mappings alone.
+`enabled = false` configures the commands without enabling the mode.
+
+The ordinary mapping API also works without setup:
+
 ```lua
 vim.o.helix = true
 vim.keymap.set('h', '<Space>w', '<Cmd>write<CR>')
@@ -138,6 +179,9 @@ vim.keymap.set('h', 'Q', function()
   vim.helix.textobject('m') -- Same object used by mim.
 end)
 vim.keymap.set('h', 'gd', vim.lsp.buf.definition)
+vim.keymap.set('h', '<Space>(', function()
+  vim.helix.surround('(') -- Wrap every current selection.
+end)
 ```
 
 Disable the mode for an otherwise ordinary buffer with `vim.b.helix = false`.
@@ -190,7 +234,7 @@ request before mutation and applies edits from last to first in one undo group.
 selections explicitly. The APIs are fork extensions at experimental API level
 15; upstream APIs through level 14 retain their existing contracts.
 
-Bundled helpers: `vim.helix.textobject()`, `select()`, `search()`, `format()`,
+Bundled helpers: `vim.helix.setup()`, `surround()`, `textobject()`, `select()`, `search()`, `format()`,
 `get_state()` and `statusline()`. See `:help helix-mode`.
 
 ## Automated tests and rebasing

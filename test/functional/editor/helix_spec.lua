@@ -501,4 +501,134 @@ describe('native Helix mode', function()
     eq({ 'one' }, selected())
     eq({ 1, 10 }, api.nvim_win_get_cursor(0))
   end)
+
+  it('enables defaults through setup without configuring individual delimiters', function()
+    text({ 'hello' })
+    exec_lua('vim.helix.setup()')
+    eq(true, api.nvim_get_option_value('helix', {}))
+    feed('miwms(')
+    eq('(hello)', api.nvim_get_current_line())
+    feed('u')
+    eq('hello', api.nvim_get_current_line())
+    eq({ 'hello' }, selected())
+    feed('ms/')
+    eq('/hello/', api.nvim_get_current_line())
+    feed('u')
+    feed('ms"')
+    eq('"hello"', api.nvim_get_current_line())
+  end)
+
+  it('accepts setup mappings as strings, callbacks and disabled keys', function()
+    text({ 'hello' })
+    exec_lua([[
+      vim.g.mapleader = ' '
+      vim.keymap.set('n', 'Q', 'dd')
+      vim.helix.setup({keymaps={
+        ['<leader>s'] = 'ms',
+        Q = function() vim.helix.surround('"') end,
+        w = false,
+      }})
+    ]])
+    exec_lua("vim.helix.textobject('w')")
+    feed(' s[')
+    eq('[hello]', api.nvim_get_current_line())
+    feed('uQ')
+    eq('"hello"', api.nvim_get_current_line())
+    feed('u')
+    local before = api.nvim_helix_get_state(0).selections
+    feed('w')
+    eq(before, api.nvim_helix_get_state(0).selections)
+    eq('hello', api.nvim_get_current_line())
+  end)
+
+  it('uses a custom pair for adding, selecting and undoing at all cursors', function()
+    text({ 'one', 'two' })
+    exec_lua([[vim.helix.setup({surrounds={t={'<em>', '</em>'}}})]])
+    api.nvim_helix_set_selections(0, { { 0, 0, 0, 3, false }, { 1, 0, 1, 3, true } }, 2, false)
+    feed('mst')
+    eq({ '<em>one</em>', '<em>two</em>' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    feed('u')
+    eq({ 'one', 'two' }, selected())
+    eq(2, api.nvim_helix_get_state(0).primary)
+    eq(true, api.nvim_helix_get_state(0).selections[2][5])
+    feed('mstmim')
+    eq({ 'one', 'two' }, selected())
+    feed('mat')
+    eq({ '<em>one</em>', '<em>two</em>' }, selected())
+    feed('mit')
+    eq({ 'one', 'two' }, selected())
+  end)
+
+  it('handles custom symmetric markers, nesting and duplicate pair aliases', function()
+    exec_lua([[vim.helix.setup({surrounds={b={'**', '**'}, q={'"', '"'}, t={'<em>', '</em>'}}})]])
+    text({ '**hello**' })
+    api.nvim_win_set_cursor(0, { 1, 8 })
+    feed('mib')
+    eq({ 'hello' }, selected())
+    feed('mab')
+    eq({ '**hello**' }, selected())
+    text({ '("hello")' })
+    api.nvim_win_set_cursor(0, { 1, 4 })
+    feed('2mim')
+    eq({ '"hello"' }, selected())
+    text({ '[<em>hello</em>]' })
+    api.nvim_win_set_cursor(0, { 1, 7 })
+    feed('mim')
+    eq({ 'hello' }, selected())
+    feed('2mim')
+    eq({ '<em>hello</em>' }, selected())
+    exec_lua([[vim.helix.setup({surrounds={['(']={'«', '»'}, ['é']={'【', '】'}}})]])
+    text({ 'hello' })
+    feed('miwms)')
+    eq('«hello»', api.nvim_get_current_line())
+    feed('mi(')
+    eq({ 'hello' }, selected())
+    text({ 'hello' })
+    feed('miwmsé')
+    eq('【hello】', api.nvim_get_current_line())
+    feed('mié')
+    eq({ 'hello' }, selected())
+  end)
+
+  it('validates setup before changing options, mappings or custom pairs', function()
+    eq(
+      true,
+      exec_lua([[
+      for _, opts in ipairs({
+        {enabled='yes'}, {surrounds={c={'', '*/'}}},
+        {surrounds={c={'/*', '*/', 'extra'}}},
+        {surrounds={c={'/*\n', '*/'}}}, {surrounds={c={'/*', 42}}},
+        {surrounds={word={'(', ')'}}}, {surrounds={m={'(', ')'}}},
+        {keymaps={Q=42}}, {keymaps={['']='ms('}}, {unknown=true},
+      }) do
+        assert(not pcall(vim.helix.setup, opts))
+        assert(not vim.o.helix)
+        assert(#vim.api.nvim_get_keymap('h') == 0)
+      end
+      assert(not pcall(vim.helix.textobject, ''))
+      return true
+    ]])
+    )
+  end)
+
+  it('copies custom configuration and permits disable, re-enable and registry reset', function()
+    text({ 'one' })
+    exec_lua([[
+      local pairs = {c={'/*', '*/'}}
+      vim.helix.setup({surrounds=pairs})
+      pairs.c[1] = 'CHANGED'
+    ]])
+    feed('miwmsc')
+    eq('/*one*/', api.nvim_get_current_line())
+    feed('u')
+    exec_lua('vim.helix.setup({enabled=false})')
+    eq('n', api.nvim_get_mode().mode)
+    exec_lua('vim.helix.setup({})')
+    feed('miwmsc')
+    eq('/*one*/', api.nvim_get_current_line())
+    feed('u')
+    exec_lua('vim.helix.setup({surrounds={}})')
+    feed('miwmsc')
+    eq('conec', api.nvim_get_current_line())
+  end)
 end)

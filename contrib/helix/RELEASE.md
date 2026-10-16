@@ -4,6 +4,12 @@ An opt-in native selection-first mode for Neovim 0.12.6. Enable it with:
 vim.o.helix = true
 ```
 
+This update adds optional `vim.helix.setup()` configuration, custom surround
+pairs shared by `ms`/`mi`/`ma`/`mim`, key overrides, and `vim.helix.surround()`.
+`ms` already accepts the next delimiter without per-character mappings.
+Calling `vim.helix.setup()` without options enables the defaults. This release
+remains based on 0.12.6; the planned integration with 0.13 is not included.
+
 Core owns the mode, selections, edit transactions and undo metadata. Bundled Lua
 implements commands, including `mim`, `ma/`, `x`, word motions and multicursor
 editing. Ordinary Vim mode remains the default.
@@ -27,7 +33,7 @@ this executable and matching runtime.
 
 The release archives are the exact artifacts from the workflow linked below.
 Both platforms passed editor/API, built-in snippet/completion and installed-package
-checks. The 31 native tests also passed under address and undefined-behavior
+checks. The native tests also passed under address and undefined-behavior
 sanitizers with leak detection enabled. SHA-256 files are attached.
 
 This is a tested preview, not complete Helix parity. Completion keeps only the

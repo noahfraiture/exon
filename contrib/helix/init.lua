@@ -1,6 +1,6 @@
 -- Minimal configuration for the native fork. No plugin installation or
 -- filesystem changes are performed when loading this file.
-vim.o.helix = true
+vim.helix.setup()
 
 vim.o.number = true
 vim.o.termguicolors = true

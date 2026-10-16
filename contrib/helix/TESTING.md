@@ -4,6 +4,14 @@ Initial verification baseline: `acfe165` (Neovim v0.12.6 base), 2026-10-16.
 Preview notes link the passing workflow for their exact source commit. Every
 preview repeats the platform, integration and sanitizer gates below.
 
+Preview 0.1.1 adds optional setup, key overrides, configurable surround pairs
+and a direct surround helper. Six additional functional tests cover defaults,
+string/callback/disabled mappings, custom pairs at multiple cursors with undo,
+nested and symmetric markers, Unicode, configuration validation and repeated
+setup. The installed-package smoke test also exercises setup and a custom pair.
+The baseline counts below describe the initial build; each preview's workflow
+logs contain its current counts. The preview still uses the 0.12.6 engine.
+
 The [Native Helix workflow run](https://github.com/noahfraiture/neovim/actions/runs/38859243012)
 passed every job. It built the executable and matching runtime from this source.
 Preview releases link their own passing workflow and publish that run's exact

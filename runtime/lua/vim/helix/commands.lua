@@ -143,6 +143,7 @@ function M.new(text, position, opts)
     register = {},
     history_limit = opts.history_limit or 200,
     display_width = opts.display_width,
+    surrounds = opts.surrounds,
   }, Engine)
   self:cursor(position or 0)
   return self
@@ -447,6 +448,12 @@ function Engine:move(key, count)
 end
 local opens = { ['('] = ')', ['['] = ']', ['{'] = '}', ['<'] = '>' }
 local closes = { [')'] = '(', [']'] = '[', ['}'] = '{', ['>'] = '<' }
+local function delimiters(key, custom)
+  assert(type(key) == 'string' and key ~= '', 'Helix surround key must be a nonempty string')
+  local open = closes[key] or key
+  local pair = custom and (custom[key] or custom[open])
+  return pair and pair[1] or open, pair and pair[2] or opens[open] or open
+end
 local function escaped(text, index)
   local n = 0
   index = index - 1
@@ -455,17 +462,17 @@ local function escaped(text, index)
   end
   return n % 2 == 1
 end
-local function surrounds(text, key)
-  local open = closes[key] or key
-  local close = opens[open] or open
+local function surrounds(text, key, custom)
+  local open, close = delimiters(key, custom)
   local stack, out, p = {}, {}, 0
   while p < #text do
     local nextp = M.next(text, p)
-    local c = text:sub(p + 1, nextp)
     if not escaped(text, p + 1) then
-      if c == close and #stack > 0 then
+      if text:sub(p + 1, p + #close) == close and #stack > 0 then
+        nextp = p + #close
         out[#out + 1] = { start = table.remove(stack), finish = nextp }
-      elseif c == open then
+      elseif text:sub(p + 1, p + #open) == open then
+        nextp = p + #open
         stack[#stack + 1] = p
       end
     end
@@ -473,10 +480,10 @@ local function surrounds(text, key)
   end
   return out, #open, #close
 end
-local function enclosing(text, s, key, count)
+local function enclosing(text, s, key, count, custom)
   local all = {}
-  local open = closes[key] or key
-  if key ~= 'm' and not opens[open] then
+  local open, close = delimiters(key, custom)
+  if key ~= 'm' and open == close then
     -- Symmetric delimiters surround the cursor, not every other delimiter from
     -- the beginning of the document. This matters for /usr/local/bin and quotes.
     local p = s.backward and s.start or (s.finish > s.start and M.prev(text, s.finish) or s.start)
@@ -484,13 +491,14 @@ local function enclosing(text, s, key, count)
     local offset = 0
     while offset < #text do
       local nextp = M.next(text, offset)
-      if text:sub(offset + 1, nextp) == key and not escaped(text, offset + 1) then
-        if offset < p then
+      if text:sub(offset + 1, offset + #open) == open and not escaped(text, offset + 1) then
+        nextp = offset + #open
+        if offset <= p and p < nextp then
+          on_delimiter = true
+        elseif offset < p then
           before[#before + 1] = offset
         elseif offset > p then
           after[#after + 1] = offset
-        else
-          on_delimiter = true
         end
       end
       offset = nextp
@@ -499,21 +507,30 @@ local function enclosing(text, s, key, count)
       local n = count or 1
       local left, right = before[#before - n + 1], after[n]
       if left and right then
-        return { start = left, finish = right + #key, left = #key, right = #key }
+        return { start = left, finish = right + #close, left = #open, right = #close }
       end
       return nil
     end
   end
   if key == 'm' then
-    for _, pair in ipairs({ '(', '[', '{', '<', '"', "'", '`' }) do
-      local ranges, left, right = surrounds(text, pair)
-      for _, range in ipairs(ranges) do
-        range.left, range.right = left, right
-        all[#all + 1] = range
+    local keys, seen = { '(', '[', '{', '<', '"', "'", '`' }, {}
+    for alias in pairs(custom or {}) do
+      keys[#keys + 1] = alias
+    end
+    for _, pair in ipairs(keys) do
+      local a, b = delimiters(pair, custom)
+      local identity = a .. '\0' .. b
+      if not seen[identity] then
+        seen[identity] = true
+        local ranges, left, right = surrounds(text, pair, custom)
+        for _, range in ipairs(ranges) do
+          range.left, range.right = left, right
+          all[#all + 1] = range
+        end
       end
     end
   else
-    local ranges, left, right = surrounds(text, key)
+    local ranges, left, right = surrounds(text, key, custom)
     for _, range in ipairs(ranges) do
       range.left, range.right = left, right
       all[#all + 1] = range
@@ -582,7 +599,7 @@ function Engine:textobject(key, around, count)
       end
       s.start, s.finish = a, b
     else
-      local found = enclosing(self.text, s, key, count)
+      local found = enclosing(self.text, s, key, count, self.surrounds)
       if found then
         s.start, s.finish =
           found.start + (around and 0 or found.left), found.finish - (around and 0 or found.right)
@@ -693,8 +710,7 @@ function Engine:find(key, character, count)
   self:normalize()
 end
 function Engine:surround(key)
-  local open = closes[key] or key
-  local close = opens[open] or open
+  local open, close = delimiters(key, self.surrounds)
   local values = {}
   for i, s in ipairs(self.selections) do
     values[i] = open .. self.text:sub(s.start + 1, s.finish) .. close

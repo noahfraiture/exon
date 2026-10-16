@@ -32,6 +32,16 @@ local ok, err = xpcall(function()
   wait_for(function()
     return request('nvim_get_mode').mode == 'h'
   end)
+  request(
+    'nvim_exec_lua',
+    [[
+    vim.helix.setup({
+      surrounds = {c = {'/*', '*/'}},
+      keymaps = {['<F6>'] = 'msc'},
+    })
+  ]],
+    {}
+  )
   request('nvim_buf_set_lines', 0, 0, -1, true, { 'outer([hello])' })
   request('nvim_win_set_cursor', 0, { 1, 8 })
   input('mimcworld<Esc>')
@@ -56,6 +66,21 @@ local ok, err = xpcall(function()
     return vim.deep_equal(request('nvim_buf_get_lines', 0, 0, -1, true), { 'one', 'two' })
   end)
   assert(#request('nvim_helix_get_state', 0).selections == 2, 'undo lost selections')
+  input('<F6>')
+  wait_for(function()
+    return vim.deep_equal(request('nvim_buf_get_lines', 0, 0, -1, true), { '/*one*/', '/*two*/' })
+  end)
+  input('mic')
+  wait_for(function()
+    for _, s in ipairs(request('nvim_helix_get_state', 0).selections) do
+      local selected =
+        table.concat(request('nvim_buf_get_text', 0, s[1], s[2], s[3], s[4], {}), '\n')
+      if selected ~= 'one' and selected ~= 'two' then
+        return false
+      end
+    end
+    return true
+  end)
 end, debug.traceback)
 pcall(request, 'nvim_command', 'qa!')
 vim.fn.jobwait({ child }, 1000)

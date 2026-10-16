@@ -7,8 +7,28 @@ Enable the native mode in Lua: >lua
 <
 Or use :set helix / :set nohelix. The default is off.
 
+Optional command configuration: >lua
+    vim.helix.setup({
+        surrounds = { c = {'/*', '*/'} },
+        keymaps = { ['<Space>s'] = 'ms' },
+    })
+<
+setup() enables the mode unless enabled=false is supplied. Built-in pairs
+already work: ms( wraps selections in parentheses; ms" adds quotes. No
+per-character mappings are needed. A custom pair key is shared by ms, mi, ma
+and nearest-surround selection: msc, mic and mac use the example above.
+Custom keys must be one character other than m, w, W or p. Delimiters can
+contain multiple characters, but must be nonempty single-line strings without
+NUL. Custom pairs supplement the defaults. Matching is lexical.
+
+keymaps entries are strings, callbacks or false (<Nop>), in the "h" namespace.
+Omitted surrounds are retained on repeated setup; surrounds={} clears custom
+pairs. Supplied keymaps update their keys, leaving other mappings alone.
+vim.helix.surround('(') wraps every selection directly.
+
 Helix normal mode selects text while moving. It reports "h" through mode()
-and nvim_get_mode(). Selection extension (v) reports "hv". Insert mode is real
+and nvim_get_mode(). Selection extension (v) reports "hv" through mode(1).
+Insert mode is real
 Neovim Insert mode and reports "i". Use the "h" mapping namespace: >lua
     vim.keymap.set('h', '<Space>w', '<Cmd>write<CR>')
     vim.keymap.set('h', 'Q', function() vim.helix.textobject('m') end)

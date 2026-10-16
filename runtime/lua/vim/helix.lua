@@ -7,6 +7,66 @@ local M = {}
 local parsers = {}
 local registers = {}
 local last_search
+local configuration = { surrounds = {} }
+
+--- @class vim.helix.Opts
+--- @field enabled? boolean Enable the mode (default true).
+--- @field surrounds? table<string, [string, string]> Custom {open, close} pairs.
+--- @field keymaps? table<string, string|function|false> Overrides in the h namespace.
+
+--- Enable native Helix editing with optional command configuration.
+--- Built-in commands/pairs require no entries. Supplied surrounds replace the
+--- previous custom registry; mappings update only the supplied keys.
+--- @param opts? vim.helix.Opts
+function M.setup(opts)
+  if opts == nil then
+    opts = {}
+  end
+  vim.validate('opts', opts, 'table')
+  vim.validate('enabled', opts.enabled, 'boolean', true)
+  vim.validate('surrounds', opts.surrounds, 'table', true)
+  vim.validate('keymaps', opts.keymaps, 'table', true)
+  for key in pairs(opts) do
+    assert(
+      key == 'enabled' or key == 'surrounds' or key == 'keymaps',
+      'Unknown Helix option: ' .. tostring(key)
+    )
+  end
+  for key, pair in pairs(opts.surrounds or {}) do
+    assert(
+      type(key) == 'string'
+        and vim.fn.strchars(key) == 1
+        and not key:find('[%c]')
+        and not key:match('^[mwWp]$'),
+      'Helix surround keys must be one character other than m, w, W or p'
+    )
+    assert(
+      type(pair) == 'table' and vim.islist(pair) and #pair == 2,
+      'Expected a Helix {open, close} pair'
+    )
+    for _, delimiter in ipairs(pair) do
+      assert(
+        type(delimiter) == 'string' and delimiter ~= '' and not delimiter:find('[%z\r\n]'),
+        'Helix delimiters must be nonempty single-line strings without NUL'
+      )
+    end
+  end
+  for lhs, rhs in pairs(opts.keymaps or {}) do
+    assert(type(lhs) == 'string' and lhs ~= '', 'Helix mapping keys must be nonempty strings')
+    assert(
+      type(rhs) == 'string' or type(rhs) == 'function' or rhs == false,
+      'Helix mappings require a string, function or false'
+    )
+  end
+  if opts.surrounds then
+    configuration.surrounds = vim.deepcopy(opts.surrounds)
+  end
+  for lhs, rhs in pairs(opts.keymaps or {}) do
+    vim.keymap.set('h', lhs, rhs == false and '<Nop>' or rhs, { silent = true })
+  end
+  parsers = {}
+  vim.o.helix = opts.enabled ~= false
+end
 
 local function name(key)
   key = key:gsub('^<C%-(%u)>$', function(c)
@@ -31,7 +91,10 @@ end
 local function model(insert)
   local state = api.nvim_helix_get_state(0)
   local text = buffer_text()
-  local e = commands.new(text, 0, { display_width = vim.fn.strdisplaywidth })
+  local e = commands.new(text, 0, {
+    display_width = vim.fn.strdisplaywidth,
+    surrounds = configuration.surrounds,
+  })
   local win = api.nvim_get_current_win()
   local parser = parsers[win] or { pending = '', count = '' }
   if parser.buffer ~= api.nvim_get_current_buf() then
@@ -150,6 +213,14 @@ end
 function M.textobject(object, around, count)
   local e, parser, batches = model(false)
   e:textobject(object, around or false, count or 1)
+  commit(e, parser, batches, false)
+end
+
+--- Surround every selection using a built-in delimiter or configured key.
+--- @param key string For example '(', '"', or a custom surround key.
+function M.surround(key)
+  local e, parser, batches = model(false)
+  e:surround(key)
   commit(e, parser, batches, false)
 end
 
