@@ -17,6 +17,20 @@ compatibility boundary below before adopting it as your only editor.
 
 ## Build and try without changing your configuration
 
+Prebuilt Linux x86-64 (Ubuntu 24.04) and macOS Apple Silicon bundles are available
+in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.0).
+Extract the matching archive and run its `bin/nvim` with the included configuration:
+
+```sh
+./neovim-helix-Linux-X64/bin/nvim -i NONE \
+  -u ./neovim-helix-Linux-X64/share/neovim-helix/init.lua
+# On macOS, replace neovim-helix-Linux-X64 with neovim-helix-macOS-ARM64.
+```
+
+Keep the bundle's `bin` and `share` directories together. Each archive includes
+a SHA-256 checksum and a smoke test. See the [verification record](contrib/helix/TESTING.md)
+for tested platforms, results and the compatibility boundary.
+
 Use the `helix` branch, not the upstream `master` branch:
 
 ```sh
@@ -186,6 +200,7 @@ TEST_FILE=test/functional/editor/helix_spec.lua make functionaltest
 TEST_FILE=test/functional/editor make functionaltest
 TEST_FILE=test/functional/api make functionaltest
 TEST_FILE=test/functional/lua/snippet_spec.lua make functionaltest
+TEST_FILE=test/functional/plugin/lsp/completion_spec.lua make functionaltest
 ```
 
 The functional tests drive real Neovim input and UI state; they do not substitute

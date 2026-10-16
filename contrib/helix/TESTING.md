@@ -1,0 +1,78 @@
+# Verification record
+
+Implementation revision: `acfe165` (Neovim v0.12.6 base).
+Verified on 2026-10-16. Documentation-only commits may follow this revision.
+
+The [Native Helix workflow run](https://github.com/noahfraiture/neovim/actions/runs/38859243012)
+passed every job. It built the executable and matching runtime from this source;
+its packages are the binaries attached to the first preview release.
+
+| Check | Linux x86-64, Ubuntu 24.04, Clang | macOS ARM64, macOS 14, Clang |
+| --- | --- | --- |
+| Build, RelWithDebInfo | Pass | Pass |
+| Editor suite, including 31 native Helix tests | 529 passed, 5 skipped | 531 passed, 4 skipped |
+| API compatibility suite | 1,371 passed, 3 skipped | 1,371 passed, 3 skipped |
+| Built-in snippets | 34 passed | 34 passed |
+| Built-in LSP completion | 45 passed | 45 passed |
+| Installed binary, bundled runtime and example configuration | Pass | Pass |
+
+The separate Linux address/undefined-behavior sanitizer job passed all 31 native
+Helix tests. Leak detection was enabled. Platform/build-dependent upstream skips
+remain visible in the workflow logs; a skipped test is not counted as passed.
+
+Additional local verification on Linux with GCC 14.2, Debug:
+
+* Editor suite: 531 passed, 4 skipped.
+* API suite: 1,371 passed, 3 skipped.
+* Entire Lua suite: 1,222 passed, 24 skipped, including the snippet tests above.
+* LSP completion: 45 passed.
+* Address/undefined-behavior sanitizers: all 31 Helix tests passed with leak
+  detection enabled.
+* An independently installed local package passed its smoke test.
+* Both CI archive checksums were verified after download. The extracted Linux
+  CI archive passed its smoke test again outside the build tree.
+
+The first local Lua run found the second sanitizer executable while testing
+filesystem traversal. Renaming that extra executable out of the fixture's
+search removed the interference; the full Lua suite then passed. No upstream
+test expectations were changed.
+
+## What the native tests exercise
+
+Real Neovim input, mode reporting and screen output; ordinary Vim behavior when
+disabled; independent `h` mappings; repeated word motions; `mim` and `ma/`;
+selection extension; simultaneous changes; primary index and direction through
+native undo/redo and alternate undo branches; window/buffer ownership; external
+buffer edits and cursor jumps; Unicode graphemes including ZWJ emoji; real
+Insert events/mappings and `InsertCharPre`; native completion's primary-cursor
+fallback; built-in snippet placeholders; autoindent; streamed and prompt paste;
+search; per-selection registers; undo-file compatibility; buffer destruction;
+and the shipped configuration's buffer navigation.
+
+## Scope of the result
+
+This verifies an initial native implementation, not complete Helix parity or
+every third-party plugin. The upstream regression suites primarily verify that
+ordinary Neovim remains intact with the feature disabled. The dedicated Helix
+tests cover enabled-mode integration.
+
+Completion has one primary context. Built-in snippet placeholders enter Vim
+Select mode. External snippet/completion plugins, macro/dot-repeat parity,
+syntax-aware textobjects, full mouse behavior, advanced multicursor indentation
+and very-large-file performance remain work to do. See [HELIX.md](../../HELIX.md)
+for the user-facing boundaries and the small manual acceptance test.
+
+## Reproduce installed-package checks
+
+After extracting a preview archive, change into its top-level directory:
+
+```sh
+./bin/nvim --headless -i NONE -u NONE \
+  -l ./share/neovim-helix/smoke.lua \
+  "$PWD/bin/nvim" "$PWD/share/neovim-helix/init.lua"
+```
+
+This launches a separate RPC child with temporary configuration/data/state/cache
+directories. It checks mode activation, `mim`, change/undo and multicursor
+change/undo with restored selections. It prints `PASS` or exits with an error.
+It does not load or change your personal configuration.
