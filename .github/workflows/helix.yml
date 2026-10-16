@@ -36,7 +36,13 @@ jobs:
           path: .deps
           key: helix-deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake.deps/**') }}
       - name: Build
-        run: make CMAKE_BUILD_TYPE=RelWithDebInfo
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            # Match upstream macOS releases; avoid Homebrew gettext/frameworks.
+            make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_EXTRA_FLAGS="-DENABLE_LIBINTL=OFF -DCMAKE_FIND_FRAMEWORK=NEVER"
+          else
+            make CMAKE_BUILD_TYPE=RelWithDebInfo
+          fi
       - name: Native mode and editor regression tests
         run: TEST_FILE=test/functional/editor make functionaltest
       - name: API compatibility

@@ -8,6 +8,9 @@ Preview 0.1.3 adds distribution notices and matching source to each bundle.
 Its installed-package check also requires the license/source files and verifies
 that version output identifies the executable as a Helix preview. This fixes
 packaging omissions; it does not expand the editor's compatibility guarantees.
+The macOS package also checks executable/parser dynamic-library paths and
+rejects dependencies outside macOS system directories. Its build follows the
+upstream release flags to avoid relying on the runner's Homebrew gettext.
 
 Preview 0.1.1 adds optional setup, key overrides, configurable surround pairs
 and a direct surround helper. Six additional functional tests cover defaults,

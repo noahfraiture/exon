@@ -48,6 +48,15 @@ tar -rf "$helix_source" -C "$helix_root" .deps/build/downloads
 gzip -f "$helix_source"
 git -C "$helix_root" rev-parse HEAD > "$helix_prefix/share/neovim-helix/SOURCE_COMMIT"
 
+# CI machines have Homebrew installed; smoke tests alone cannot detect a
+# dependency that would be missing on a user's clean macOS installation.
+if [ "$(uname -s)" = Darwin ]; then
+  otool -L "$helix_prefix/bin/nvim" "$helix_prefix/lib/nvim/parser/"* \
+    > "$helix_prefix/share/neovim-helix/DEPENDENCIES.txt"
+  awk '/^\t/ && $1 !~ /^\/(usr\/lib|System\/Library)\// { print; bad=1 } END { exit bad }' \
+    "$helix_prefix/share/neovim-helix/DEPENDENCIES.txt"
+fi
+
 "$helix_prefix/bin/nvim" --headless -i NONE -u NONE \
   -l "$helix_prefix/share/neovim-helix/smoke.lua" \
   "$helix_prefix/bin/nvim" "$helix_prefix/share/neovim-helix/init.lua"

@@ -37,6 +37,8 @@ a SHA-256 checksum and a smoke test. See the [verification record](contrib/helix
 for tested platforms, results and the compatibility boundary.
 Bundles include license notices and matching application/dependency source;
 see [distribution details](contrib/helix/DISTRIBUTION.md).
+The macOS bundle uses upstream's release settings without gettext UI
+translations, so it does not require Homebrew gettext at runtime.
 
 Use the `helix` branch, not the upstream `master` branch:
 

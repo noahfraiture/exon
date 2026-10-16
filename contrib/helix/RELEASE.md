@@ -11,6 +11,10 @@ smoke check verifies the notices, source files and fork identifier as well as
 editing. See `share/neovim-helix/DISTRIBUTION.md` for rebuilding and
 redistribution details.
 
+The macOS build also drops an unintended Homebrew gettext dependency, following
+upstream's release settings. Packaged executable/parser load dependencies must
+use only macOS system paths. This build has no gettext UI translations.
+
 Optional `vim.helix.setup()` and custom surround pairs remain available.
 No per-delimiter mappings are needed for built-in pairs.
 

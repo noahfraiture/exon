@@ -48,6 +48,12 @@ make CMAKE_BUILD_TYPE=RelWithDebInfo
 VIMRUNTIME="$PWD/runtime" ./build/bin/nvim -u contrib/helix/init.lua
 ```
 
+The macOS binary follows upstream's release settings: add
+`CMAKE_EXTRA_FLAGS="-DENABLE_LIBINTL=OFF -DCMAKE_FIND_FRAMEWORK=NEVER"` to the
+`make` command to match it. This avoids a Homebrew gettext dependency; the
+macOS bundle consequently has no gettext UI translations. `DEPENDENCIES.txt`
+records the binary/parser load dependencies, checked to use only system paths.
+
 The prerequisites in `BUILD.md` apply. The default build uses the included
 dependency downloads. To change a library, edit its extracted source under
 `.deps/build/src`, rebuild it with its supplied build system into `.deps/usr`,
