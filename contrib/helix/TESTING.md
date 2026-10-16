@@ -4,8 +4,9 @@ Implementation revision: `acfe165` (Neovim v0.12.6 base).
 Verified on 2026-10-16. Documentation-only commits may follow this revision.
 
 The [Native Helix workflow run](https://github.com/noahfraiture/neovim/actions/runs/38859243012)
-passed every job. It built the executable and matching runtime from this source;
-its packages are the binaries attached to the first preview release.
+passed every job. It built the executable and matching runtime from this source.
+Preview releases link their own passing workflow and publish that run's exact
+packages; subsequent commits add documentation and release automation.
 
 | Check | Linux x86-64, Ubuntu 24.04, Clang | macOS ARM64, macOS 14, Clang |
 | --- | --- | --- |

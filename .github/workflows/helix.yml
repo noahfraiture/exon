@@ -5,6 +5,12 @@ on:
   pull_request:
     branches: [helix]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Optional new preview tag to publish after all checks pass'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -64,3 +70,31 @@ jobs:
           cmake --build build-sanitized -j 4
       - name: Native Helix tests under sanitizers
         run: TEST_FILE=test/functional/editor/helix_spec.lua cmake --build build-sanitized --target functionaltest
+
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    needs: [native, sanitizers]
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: neovim-helix-*
+          merge-multiple: true
+          path: release
+      - name: Publish tested preview bundles
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HELIX_RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          [[ "$HELIX_RELEASE_TAG" =~ ^helix-preview-[0-9][0-9A-Za-z._-]*$ ]]
+          cat contrib/helix/RELEASE.md > "$RUNNER_TEMP/helix-release.md"
+          printf '\nTested source: `%s`.\n\n[Passing workflow](https://github.com/%s/actions/runs/%s).\n' \
+            "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/helix-release.md"
+          gh release create "$HELIX_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease --title "Native Helix $HELIX_RELEASE_TAG" \
+            --notes-file "$RUNNER_TEMP/helix-release.md" release/*.tar.gz release/*.sha256

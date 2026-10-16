@@ -57,6 +57,14 @@ change the existing undo file format incidentally.
 * Insert events/mappings, completion, snippet placeholders, streamed paste,
   buffer destruction and disable/re-enable behavior remain predictable.
 
+## Publishing a preview
+
+Dispatch the `Native Helix` workflow on `helix` with a new `release_tag`, such as
+`helix-preview-0.1.0`. Leave the input empty to run checks without publishing.
+Publication requires both platform jobs and the sanitizer job to succeed. The
+release uses that same run's archives and source commit, with checksums and the
+notes in `contrib/helix/RELEASE.md`. Existing release tags are not overwritten.
+
 ## Licensing
 
 The command calculations originated in `noahfraiture/helix.vim` under MIT.
