@@ -1080,6 +1080,7 @@ normal_end:
 static int normal_execute(VimState *state, int key)
 {
   NormalState *s = (NormalState *)state;
+  const bool helix_mapping = State == MODE_HELIX && (key == K_LUA || key == K_COMMAND);
   if (State == MODE_HELIX && helix_handle_key(key)) {
     return 1;
   }
@@ -1227,7 +1228,8 @@ static int normal_execute(VimState *state, int key)
     did_cursorhold = false;
   }
 
-  State = MODE_NORMAL;
+  // Native mapping payloads execute in the mode in which they were invoked.
+  State = helix_mapping ? MODE_HELIX : MODE_NORMAL;
 
   if (s->ca.nchar == ESC || s->ca.extra_char == ESC) {
     clearop(&s->oa);

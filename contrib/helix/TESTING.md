@@ -1,12 +1,14 @@
 # Verification record
 
-Implementation revision: `acfe165` (Neovim v0.12.6 base).
-Verified on 2026-10-16. Documentation-only commits may follow this revision.
+Initial verification baseline: `acfe165` (Neovim v0.12.6 base), 2026-10-16.
+Preview notes link the passing workflow for their exact source commit. Every
+preview repeats the platform, integration and sanitizer gates below.
 
 The [Native Helix workflow run](https://github.com/noahfraiture/neovim/actions/runs/38859243012)
 passed every job. It built the executable and matching runtime from this source.
 Preview releases link their own passing workflow and publish that run's exact
-packages; subsequent commits add documentation and release automation.
+packages. Follow-up work adds documentation, release automation and mode
+reporting inside native mapping callbacks.
 
 | Check | Linux x86-64, Ubuntu 24.04, Clang | macOS ARM64, macOS 14, Clang |
 | --- | --- | --- |
@@ -41,7 +43,8 @@ test expectations were changed.
 ## What the native tests exercise
 
 Real Neovim input, mode reporting and screen output; ordinary Vim behavior when
-disabled; independent `h` mappings; repeated word motions; `mim` and `ma/`;
+disabled; independent `h` mappings (including callback mode reporting and
+explicit Visual-mode entry); repeated word motions; `mim` and `ma/`;
 selection extension; simultaneous changes; primary index and direction through
 native undo/redo and alternate undo branches; window/buffer ownership; external
 buffer edits and cursor jumps; Unicode graphemes including ZWJ emoji; real

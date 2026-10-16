@@ -217,7 +217,7 @@ void get_mode(char *buf)
     if ((State & MODE_CMDLINE) && cmdline_overstrike()) {
       buf[i++] = 'r';
     }
-  } else if (State & MODE_HELIX) {
+  } else if ((State & MODE_HELIX) && !VIsual_active) {
     buf[i++] = 'h';
     if (helix_extending()) {
       buf[i++] = 'v';
