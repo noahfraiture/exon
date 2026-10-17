@@ -1,10 +1,9 @@
-# Native Helix preview distribution
+# Exon preview distribution
 
-This is a modified Neovim distribution maintained at
-<https://github.com/noahfraiture/neovim/tree/helix>. For Helix bug reports or
+Exon is a modified Neovim distribution maintained at
+<https://github.com/noahfraiture/exon>. For Helix bug reports or
 source requests, contact the maintainer through
-<https://github.com/noahfraiture/helix.vim/issues> (the original plugin's tracker;
-the Neovim fork's issue tracker is disabled).
+<https://github.com/noahfraiture/helix.vim/issues> (the original plugin's tracker).
 It is not an official Neovim or Helix release.
 
 The changes add an optional native selection-first mode, selection/edit APIs,

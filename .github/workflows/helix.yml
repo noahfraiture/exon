@@ -1,9 +1,9 @@
 name: Native Helix
 on:
   push:
-    branches: [helix]
+    branches: [main]
   pull_request:
-    branches: [helix]
+    branches: [main]
   workflow_dispatch:
     inputs:
       release_tag:

@@ -18,7 +18,7 @@ use only macOS system paths. This build has no gettext UI translations.
 Optional `vim.helix.setup()` and custom surround pairs remain available.
 No per-delimiter mappings are needed for built-in pairs.
 
-The [architecture and feature review](https://github.com/noahfraiture/neovim/blob/helix/contrib/helix/REVIEW.md)
+The [architecture and feature review](https://github.com/noahfraiture/exon/blob/main/contrib/helix/REVIEW.md)
 records remaining gaps. This release remains based on 0.12.6; the planned
 integration with 0.13 is not included. Native Insert commands outside the
 vectorized set keep only the primary cursor, as completion already does.
@@ -41,8 +41,8 @@ Remove the old `require('helix').setup()` when moving your own configuration to
 the fork. `vim.pack` can still install ordinary plugins; the native mode requires
 this executable and matching runtime.
 
-[Instructions and manual test](https://github.com/noahfraiture/neovim/blob/helix/HELIX.md)
-· [Verification record](https://github.com/noahfraiture/neovim/blob/helix/contrib/helix/TESTING.md)
+[Instructions and manual test](https://github.com/noahfraiture/exon/blob/main/HELIX.md)
+· [Verification record](https://github.com/noahfraiture/exon/blob/main/contrib/helix/TESTING.md)
 
 The release archives are the exact artifacts from the workflow linked below.
 Both platforms passed editor/API, built-in snippet/completion and installed-package

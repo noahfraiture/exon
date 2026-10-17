@@ -1,5 +1,5 @@
 {
-  description = "Neovim with an opt-in native Helix editing mode";
+  description = "Exon: Neovim with an opt-in native Helix editing mode";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -15,7 +15,7 @@
       mkPackage =
         pkgs:
         pkgs.neovim-unwrapped.overrideAttrs (old: {
-          pname = "neovim-helix";
+          pname = "exon";
           version = "0.12.6-helix-preview";
           src = self;
 
@@ -38,9 +38,9 @@
           '';
 
           meta = old.meta // {
-            description = "Neovim with native selection-first Helix editing";
-            homepage = "https://github.com/noahfraiture/neovim/tree/helix";
-            changelog = "https://github.com/noahfraiture/neovim/commits/helix";
+            description = "Exon: Neovim with native selection-first Helix editing";
+            homepage = "https://github.com/noahfraiture/exon";
+            changelog = "https://github.com/noahfraiture/exon/commits/main";
             license = old.meta.license ++ [ pkgs.lib.licenses.mit ];
           };
         });
@@ -52,8 +52,9 @@
           pkgs = import nixpkgs { inherit system; };
         in
         rec {
-          neovim-helix = mkPackage pkgs;
-          default = neovim-helix;
+          exon = mkPackage pkgs;
+          default = exon;
+          neovim-helix = exon; # Compatibility for existing package references.
         }
       );
 
@@ -61,8 +62,14 @@
         native = self.packages.${system}.default;
       });
 
-      overlays.default = final: prev: {
-        neovim-helix = mkPackage prev;
-      };
+      overlays.default =
+        final: prev:
+        let
+          package = mkPackage prev;
+        in
+        {
+          exon = package;
+          neovim-helix = package;
+        };
     };
 }

@@ -1,6 +1,6 @@
-# Native Helix mode
+# Exon native Helix mode
 
-This fork adds an opt-in selection-first editing mode to Neovim 0.12.6.
+Exon adds an opt-in selection-first editing mode to Neovim 0.12.6.
 Enable it in `init.lua`:
 
 ```lua
@@ -25,19 +25,19 @@ compatibility boundary below before adopting it as your only editor.
 With Nix, build or try the fork directly:
 
 ```sh
-nix build github:noahfraiture/neovim/helix
+nix build github:noahfraiture/exon
 ./result/bin/nvim -u NONE --cmd 'set helix'
 # Or run without creating ./result:
-nix run github:noahfraiture/neovim/helix -- -u NONE --cmd 'set helix'
+nix run github:noahfraiture/exon -- -u NONE --cmd 'set helix'
 ```
 
-The flake exports `packages.<system>.default` and `neovim-helix`, plus
+The flake exports `packages.<system>.default` and `exon`, plus
 `overlays.default`. See [Nix installation](contrib/helix/NIX.md) for flake-input,
 NixOS and Home Manager examples. Nix builds the fork from source with its
 matching runtime; Helix remains opt-in through `vim.helix.setup()` or the boolean.
 
 Prebuilt Linux x86-64 (Ubuntu 24.04) and macOS Apple Silicon bundles are available
-in the [preview release](https://github.com/noahfraiture/neovim/releases/tag/helix-preview-0.1.3).
+in the [preview release](https://github.com/noahfraiture/exon/releases/tag/helix-preview-0.1.3).
 Extract the matching archive and run its `bin/nvim` with the included configuration:
 
 ```sh
@@ -54,11 +54,11 @@ see [distribution details](contrib/helix/DISTRIBUTION.md).
 The macOS bundle uses upstream's release settings without gettext UI
 translations, so it does not require Homebrew gettext at runtime.
 
-Use the `helix` branch, not the upstream `master` branch:
+The default `main` branch contains Exon:
 
 ```sh
-git clone --branch helix https://github.com/noahfraiture/neovim.git neovim-helix
-cd neovim-helix
+git clone https://github.com/noahfraiture/exon.git
+cd exon
 make CMAKE_BUILD_TYPE=RelWithDebInfo
 VIMRUNTIME="$PWD/runtime" ./build/bin/nvim -u contrib/helix/init.lua
 ```

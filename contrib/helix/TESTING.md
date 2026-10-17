@@ -30,7 +30,7 @@ a production change. See [REVIEW.md](REVIEW.md) for the feature inventory and
 the architectural work still required; passing these tests does not establish
 complete Helix parity.
 
-The [Native Helix workflow run](https://github.com/noahfraiture/neovim/actions/runs/38859243012)
+The [Native Helix workflow run](https://github.com/noahfraiture/exon/actions/runs/38859243012)
 passed every job. It built the executable and matching runtime from this source.
 Preview releases link their own passing workflow and publish that run's exact
 packages. Follow-up work adds documentation, release automation and mode

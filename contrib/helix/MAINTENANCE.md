@@ -1,7 +1,10 @@
 # Maintaining the native mode
 
 Upstream base: Neovim v0.12.6, `779c36969e31080503be2dfccbcc3f999e289606`.
-The native feature branch is `helix`; `master` remains available for upstream.
+Exon development uses the default `main` branch. The old `helix` branch is
+retained as a compatibility snapshot for existing inputs; keep its history.
+The GitHub repository remains a fork of `neovim/neovim`. Use the `upstream`
+remote for Neovim updates; its branch names are independent of Exon's `main`.
 
 Upstream 0.13 already has native multicursors ([merged implementation](https://github.com/neovim/neovim/pull/41587)).
 The 0.12 bridge is a preview, not the intended long-term multicursor backend.
@@ -36,6 +39,14 @@ change the existing undo file format incidentally.
 
 ## Updating upstream
 
+A fresh clone can configure the upstream remote explicitly:
+
+```sh
+git remote add upstream https://github.com/neovim/neovim.git
+git fetch upstream
+```
+
+
 1. Make a branch/tag at the current tested Helix revision. Preserve a working
    binary/runtime pair and configuration so an update can be rolled back.
 2. Fetch the desired upstream release, read its breaking changes, and rebase the
@@ -66,7 +77,7 @@ change the existing undo file format incidentally.
 
 ## Publishing a preview
 
-Dispatch the `Native Helix` workflow on `helix` with a new `release_tag`, such as
+Dispatch the `Native Helix` workflow on `main` with a new `release_tag`, such as
 `helix-preview-0.1.0`. Leave the input empty to run checks without publishing.
 Publication requires both platform jobs and the sanitizer job to succeed. The
 release uses that same run's archives and source commit, with checksums and the

@@ -1,9 +1,9 @@
 name: Native Helix Nix
 on:
   push:
-    branches: [helix]
+    branches: [main]
   pull_request:
-    branches: [helix]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
