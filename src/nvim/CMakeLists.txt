@@ -770,6 +770,16 @@ endif()
 target_link_libraries(nvim_bin PRIVATE main_lib PUBLIC libuv)
 
 install_helper(TARGETS nvim_bin)
+if(UNIX)
+  # Relative aliases keep the runtime relocatable and follow downstream wrappers.
+  install(CODE "
+    foreach(exon_command exon ex)
+      file(CREATE_LINK nvim
+        \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/\${exon_command}\"
+        SYMBOLIC)
+    endforeach()
+  ")
+endif()
 if(MSVC)
   install(FILES $<TARGET_PDB_FILE:nvim_bin> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()

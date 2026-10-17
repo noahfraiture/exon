@@ -57,9 +57,11 @@ if [ "$(uname -s)" = Darwin ]; then
     "$helix_prefix/share/neovim-helix/DEPENDENCIES.txt"
 fi
 
-"$helix_prefix/bin/nvim" --headless -i NONE -u NONE \
-  -l "$helix_prefix/share/neovim-helix/smoke.lua" \
-  "$helix_prefix/bin/nvim" "$helix_prefix/share/neovim-helix/init.lua"
+for helix_command in exon ex nvim; do
+  "$helix_prefix/bin/$helix_command" --headless -i NONE -u NONE \
+    -l "$helix_prefix/share/neovim-helix/smoke.lua" \
+    "$helix_prefix/bin/$helix_command" "$helix_prefix/share/neovim-helix/init.lua"
+done
 
 helix_parent=$(dirname -- "$helix_prefix")
 helix_name=$(basename -- "$helix_prefix")

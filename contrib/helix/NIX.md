@@ -2,8 +2,10 @@
 
 Exon's default `master` branch contains a flake. It builds the fork using the
 locked Nixpkgs Neovim recipe, including its Lua dependencies, parser grammars
-and Neovim wrappers. The executable is named `nvim` and includes its matching
-runtime. Nix does not enable the mode or modify your editor configuration.
+and Neovim wrappers. Run `exon` or its short name `ex`; `nvim` remains available
+for compatibility with Neovim wrappers and tools. All three include the matching
+runtime and read your existing `~/.config/nvim/init.lua` (or `NVIM_APPNAME`
+configuration). Nix does not enable the mode or modify your editor configuration.
 
 ## Try and build
 
@@ -19,7 +21,7 @@ nix run github:noahfraiture/exon -- -u NONE --cmd 'set helix'
 
 # Build without installing globally.
 nix build github:noahfraiture/exon
-./result/bin/nvim --version
+./result/bin/exon --version
 
 # Install into your user profile, if you do not use a system/home module.
 nix profile install github:noahfraiture/exon
@@ -48,9 +50,10 @@ For example, in an inline NixOS module inside your flake's outputs:
 ```
 
 In a separate module, pass `inputs` through `specialArgs` (or Home Manager's
-`extraSpecialArgs`) before referring to it in the module arguments. Remove a
-separate stock Neovim package from the same package list to avoid two `nvim`
-executables competing in your profile.
+`extraSpecialArgs`) before referring to it in the module arguments. If stock
+Neovim is also installed, launch `exon` explicitly. Remove a separate stock
+Neovim package from the same package list to avoid two `nvim` executables
+competing in your profile.
 
 Home Manager can wrap this package and configure Helix directly:
 
@@ -97,7 +100,9 @@ nixpkgs.overlays = [ inputs.exon.overlays.default ];
 Package outputs cover `x86_64-linux`, `aarch64-linux` and `aarch64-darwin`.
 The locked Nixpkgs no longer supports Intel macOS (`x86_64-darwin`).
 Build checks run Nixpkgs' parser tests, the native Helix functional suite and
-an installed executable/runtime/configuration smoke test:
+installed executable/runtime/configuration smoke tests through all three names.
+An additional command check verifies existing `nvim/init.lua` loading and
+preserves Nix wrapper configuration when launching either alias:
 
 ```sh
 nix flake check github:noahfraiture/exon --print-build-logs
@@ -112,6 +117,26 @@ editing limitations of the current preview still apply.
 The `neovim-helix` package and overlay names remain aliases of `exon`.
 When moving from `github:noahfraiture/neovim/helix`, update the URL to
 `github:noahfraiture/exon`; your local input name (for example `helix-nvim`)
-can stay the same. `vim.helix.setup()` and the `nvim` executable keep their names.
+can stay the same. `vim.helix.setup()` and the `nvim` compatibility command keep
+their names; `exon` and `ex` launch the same fork.
 The old `helix` branch is retained as a compatibility snapshot; development
 continues on `master`.
+
+## Unknown option `helix`
+
+This error means the executable you launched does not contain the fork's native
+mode. Check which commands your shell resolves:
+
+```sh
+type -a exon ex nvim
+exon --version
+```
+
+The fork identifies itself as `NVIM v0.12.6-helix-preview`. After adding or
+updating the input, run `nix flake update exon`, rebuild your system or Home
+Manager configuration, and launch `exon` explicitly. For an isolated check
+without your configuration:
+
+```sh
+nix run --refresh github:noahfraiture/exon -- -u NONE --cmd 'set helix'
+```

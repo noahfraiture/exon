@@ -15,7 +15,7 @@ integration with upstream 0.13 multicursors is still unfinished. The
 nix run github:noahfraiture/exon -- -u NONE --cmd 'set helix'
 # Or build without installing:
 nix build github:noahfraiture/exon
-./result/bin/nvim
+./result/bin/exon
 ```
 
 Add the repository as a flake input:
@@ -25,8 +25,9 @@ inputs.exon.url = "github:noahfraiture/exon";
 # Package: inputs.exon.packages.${pkgs.stdenv.hostPlatform.system}.default
 ```
 
-The executable remains `nvim`, with its matching runtime. Enable the mode in
-`init.lua`:
+Launch the fork with `exon` or `ex`; `nvim` remains available for compatibility.
+All three use the same executable, matching runtime and existing
+`~/.config/nvim/init.lua`. `nix run` launches `exon`. Enable the mode in `init.lua`:
 
 ```lua
 vim.helix.setup()

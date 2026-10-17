@@ -26,7 +26,7 @@ With Nix, build or try the fork directly:
 
 ```sh
 nix build github:noahfraiture/exon
-./result/bin/nvim -u NONE --cmd 'set helix'
+./result/bin/exon -u NONE --cmd 'set helix'
 # Or run without creating ./result:
 nix run github:noahfraiture/exon -- -u NONE --cmd 'set helix'
 ```
@@ -35,6 +35,9 @@ The flake exports `packages.<system>.default` and `exon`, plus
 `overlays.default`. See [Nix installation](contrib/helix/NIX.md) for flake-input,
 NixOS and Home Manager examples. Nix builds the fork from source with its
 matching runtime; Helix remains opt-in through `vim.helix.setup()` or the boolean.
+Launch with `exon` or its short name `ex`; `nvim` remains a compatibility name.
+All three read your existing Neovim configuration. The names are included in
+new source installs and bundles; the older preview archives below contain `nvim`.
 
 Prebuilt Linux x86-64 (Ubuntu 24.04) and macOS Apple Silicon bundles are available
 in the [preview release](https://github.com/noahfraiture/exon/releases/tag/helix-preview-0.1.3).
@@ -78,7 +81,7 @@ Install the binary and matching runtime together into a separate prefix:
 
 ```sh
 cmake --install build --prefix "$HOME/.local/opt/neovim-helix"
-"$HOME/.local/opt/neovim-helix/bin/nvim"
+"$HOME/.local/opt/neovim-helix/bin/exon"
 ```
 
 Add `vim.o.helix = true` to your configuration when ready. `vim.pack` continues
