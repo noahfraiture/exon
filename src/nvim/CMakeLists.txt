@@ -773,9 +773,13 @@ install_helper(TARGETS nvim_bin)
 if(UNIX)
   # Relative aliases keep the runtime relocatable and follow downstream wrappers.
   install(CODE "
+    set(exon_bindir \"${CMAKE_INSTALL_BINDIR}\")
+    if(NOT IS_ABSOLUTE \"\${exon_bindir}\")
+      set(exon_bindir \"\${CMAKE_INSTALL_PREFIX}/\${exon_bindir}\")
+    endif()
     foreach(exon_command exon ex)
       file(CREATE_LINK nvim
-        \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/\${exon_command}\"
+        \"\$ENV{DESTDIR}\${exon_bindir}/\${exon_command}\"
         SYMBOLIC)
     endforeach()
   ")
