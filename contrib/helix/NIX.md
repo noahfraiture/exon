@@ -1,6 +1,6 @@
 # Install with Nix
 
-Exon's default `main` branch contains a flake. It builds the fork using the
+Exon's default `master` branch contains a flake. It builds the fork using the
 locked Nixpkgs Neovim recipe, including its Lua dependencies, parser grammars
 and Neovim wrappers. The executable is named `nvim` and includes its matching
 runtime. Nix does not enable the mode or modify your editor configuration.
@@ -114,4 +114,4 @@ When moving from `github:noahfraiture/neovim/helix`, update the URL to
 `github:noahfraiture/exon`; your local input name (for example `helix-nvim`)
 can stay the same. `vim.helix.setup()` and the `nvim` executable keep their names.
 The old `helix` branch is retained as a compatibility snapshot; development
-continues on `main`.
+continues on `master`.

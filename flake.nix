@@ -40,7 +40,7 @@
           meta = old.meta // {
             description = "Exon: Neovim with native selection-first Helix editing";
             homepage = "https://github.com/noahfraiture/exon";
-            changelog = "https://github.com/noahfraiture/exon/commits/main";
+            changelog = "https://github.com/noahfraiture/exon/commits/master";
             license = old.meta.license ++ [ pkgs.lib.licenses.mit ];
           };
         });

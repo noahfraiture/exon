@@ -5,7 +5,7 @@ Core owns the mode, selections, editing and undo integration; bundled Lua
 implements commands and configuration. `mim`, `ma/`, word/line selection and
 multicursor editing are included.
 
-The default branch is `main`. This is a tested Neovim 0.12.6 preview; the planned
+The default branch is `master`. This is a tested Neovim 0.12.6 preview; the planned
 integration with upstream 0.13 multicursors is still unfinished. The
 [feature review](contrib/helix/REVIEW.md) records the current limits.
 
@@ -47,7 +47,7 @@ to work. See the [Nix guide](contrib/helix/NIX.md) for NixOS and Home Manager.
 
 Exon preserves Neovim's Git history and upstream fork relationship. Existing
 preview tags and release asset names are retained. New development is on
-`main`; `helix` is kept as a compatibility snapshot.
+`master`; `helix` is kept as a compatibility snapshot.
 
 <details>
 <summary>Upstream Neovim README</summary>

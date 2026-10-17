@@ -54,7 +54,7 @@ see [distribution details](contrib/helix/DISTRIBUTION.md).
 The macOS bundle uses upstream's release settings without gettext UI
 translations, so it does not require Homebrew gettext at runtime.
 
-The default `main` branch contains Exon:
+The default `master` branch contains Exon:
 
 ```sh
 git clone https://github.com/noahfraiture/exon.git
