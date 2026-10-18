@@ -134,7 +134,17 @@ local function model(insert)
         batch[#batch + 1] = { sr, sc, er, ec, vim.split(edit.value, '\n', { plain = true }) }
       end
     end
-    if #batch > 0 then
+    if #batch > 10000 then
+      -- Apply later chunks first so all coordinates refer to this snapshot.
+      -- commit() joins these native calls into one undo step.
+      for last = #batch, 1, -10000 do
+        local chunk = {}
+        for i = math.max(1, last - 9999), last do
+          chunk[#chunk + 1] = batch[i]
+        end
+        batches[#batches + 1] = chunk
+      end
+    elseif #batch > 0 then
       batches[#batches + 1] = batch
     end
   end
@@ -206,6 +216,26 @@ end
 function M.surround(key)
   local e, parser, batches = model(false)
   e:surround(key)
+  commit(e, parser, batches, false)
+end
+
+--- Replace surrounds at every selection, retaining the selected content.
+--- @param from string Existing pair key, or 'm' for the closest surround.
+--- @param to string New built-in or configured pair key.
+--- @param count? integer Select the nth enclosing pair (default 1).
+function M.replace_surround(from, to, count)
+  vim.validate('to', to, 'string')
+  local e, parser, batches = model(false)
+  e:change_surround(from, to, count or 1)
+  commit(e, parser, batches, false)
+end
+
+--- Delete surrounds at every selection, retaining the selected content.
+--- @param key string Existing pair key, or 'm' for the closest surround.
+--- @param count? integer Select the nth enclosing pair (default 1).
+function M.delete_surround(key, count)
+  local e, parser, batches = model(false)
+  e:change_surround(key, nil, count or 1)
   commit(e, parser, batches, false)
 end
 

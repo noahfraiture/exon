@@ -24,7 +24,7 @@ The follow-up architecture review adds regressions for literal command
 arguments under mappings, native Alt shortcuts, Insert cursor placement and
 empty-line cursor preservation, native-control fallback/undo, Unicode case
 conversion, parser cancellation and special delimiter keys. The dedicated
-suite now contains 59 tests, including native Unicode word classes and
+suite now contains 75 tests, including native Unicode word classes and
 'iskeyword'. A colorscheme-reload control also passes without
 a production change. See [REVIEW.md](REVIEW.md) for the feature inventory and
 the architectural work still required; passing these tests does not establish
@@ -38,6 +38,16 @@ blank lines and multicursor edits. The backward/forward boundary and screen
 tests failed before the fix; they verify that the old cursor character does
 not remain in the replacement selection. The installed-package smoke test also
 checks the reported backward selection, replacement and undo through real input.
+
+Surround replacement/deletion regressions cover `mr"'`, `md`, nearest pairs,
+counts and bracket aliases; literal command arguments under mappings; custom
+multi-character and Unicode pairs; shared and nested surrounds; empty and
+multiline content; escaped delimiters; native marks inside the retained text;
+screen highlighting, selection direction and primary index; undo/redo;
+cancellation and missing/conflicting pairs. A 5,001-cursor test verifies that
+more than 10,000 delimiter edits retain their coordinates across native batches
+and undo in one step. Installed-package checks also exercise replacement and
+deletion with built-in and configured pairs at multiple cursors.
 
 The [Native Helix workflow run](https://github.com/noahfraiture/exon/actions/runs/38859243012)
 passed every job. It built the executable and matching runtime from this source.

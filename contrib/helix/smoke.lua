@@ -74,6 +74,20 @@ local ok, err = xpcall(function()
   wait_for(function()
     return request('nvim_get_current_line') == 'helos sadf saf d'
   end)
+  request('nvim_buf_set_lines', 0, 0, -1, true, { '"hello"' })
+  request('nvim_win_set_cursor', 0, { 1, 3 })
+  input([[mr"']])
+  wait_for(function()
+    return request('nvim_get_current_line') == "'hello'"
+  end)
+  input("md'")
+  wait_for(function()
+    return request('nvim_get_current_line') == 'hello'
+  end)
+  input('uu')
+  wait_for(function()
+    return request('nvim_get_current_line') == '"hello"'
+  end)
   request('nvim_buf_set_lines', 0, 0, -1, true, { 'outer([hello])' })
   request('nvim_win_set_cursor', 0, { 1, 8 })
   input('mimcworld<Esc>')
@@ -112,6 +126,22 @@ local ok, err = xpcall(function()
       end
     end
     return true
+  end)
+  input('mrc"')
+  wait_for(function()
+    return vim.deep_equal(request('nvim_buf_get_lines', 0, 0, -1, true), { '"one"', '"two"' })
+  end)
+  assert(
+    request('nvim_helix_get_state', 0).primary == 2,
+    'surround replacement lost primary cursor'
+  )
+  input('u')
+  wait_for(function()
+    return vim.deep_equal(request('nvim_buf_get_lines', 0, 0, -1, true), { '/*one*/', '/*two*/' })
+  end)
+  input('mdc')
+  wait_for(function()
+    return vim.deep_equal(request('nvim_buf_get_lines', 0, 0, -1, true), { 'one', 'two' })
   end)
 end, debug.traceback)
 pcall(request, 'nvim_command', 'qa!')

@@ -134,6 +134,8 @@ attached language server supports completion; it does not install servers.
 | `mi(`, `ma[`, `mi"`, `ma/`, etc. | Inside / around a specific delimiter |
 | `miw`, `miW`, `mip` | Word, WORD, paragraph objects |
 | `ms` + delimiter | Surround selections |
+| `mr` + old + new delimiter | Replace surrounds, e.g. `mr"'` changes double to single quotes |
+| `md` + delimiter | Delete surrounds, retaining their contents |
 | `C`, `Alt-C` | Add a selection on the next / previous line |
 | `,`, `Alt-,` | Keep the primary / remove the primary selection |
 | `(`, `)` | Rotate the primary selection |
@@ -187,9 +189,24 @@ Custom entries supplement the built-in pairs (or override their keys). Pair
 keys are one character; `m`, `w`, `W` and `p` are reserved textobjects. Delimiters
 may contain multiple characters, but must be nonempty single-line strings
 without NUL. The same registry serves adding, inside/around selection and the
-nearest-surround objects. Matching remains lexical, not syntax-aware.
-Adding surrounds is supported; surround replacement/deletion (`mr`/`md`) remains
-unimplemented.
+nearest-surround objects, replacement and deletion. Matching remains lexical,
+not syntax-aware.
+
+With the cursor or a selection inside `"hello"`, `mr"'` produces `'hello'` and
+`md"` produces `hello`. `mr([` changes parentheses to square brackets; either
+the opening or closing bracket identifies the pair. `mrm'` replaces the closest
+surround with single quotes; `mdm` removes the closest surround. Prefix counts
+select an outer pair: `2mr([` replaces the second enclosing parenthesis pair.
+Custom keys work in both positions, for example `mrct` replaces `/* ... */`
+with `<em> ... </em>` using the configuration above.
+
+These commands apply at every selection and undo together. They retain the
+selected content, direction and primary selection, then return to Helix normal
+mode. Multiple cursors inside one pair edit its delimiters once. If any selection
+lacks a matching pair, or shared delimiters need conflicting replacements, the
+command leaves the text and selections unchanged. Escape cancels either prompt.
+Lua mappings can call `vim.helix.replace_surround('"', "'")` and
+`vim.helix.delete_surround('m')`; both accept an optional enclosing-pair count.
 
 `keymaps` values may be strings, callbacks or `false` (`<Nop>`). They use the `h`
 namespace and do not change Insert mappings. Use ordinary `vim.keymap.set()`
@@ -271,7 +288,8 @@ request before mutation and applies edits from last to first in one undo group.
 selections explicitly. The APIs are fork extensions at experimental API level
 15; upstream APIs through level 14 retain their existing contracts.
 
-Bundled helpers: `vim.helix.setup()`, `surround()`, `textobject()`, `select()`, `search()`, `format()`,
+Bundled helpers: `vim.helix.setup()`, `surround()`, `replace_surround()`,
+`delete_surround()`, `textobject()`, `select()`, `search()`, `format()`,
 `get_state()` and `statusline()`. See `:help helix-mode`.
 
 ## Automated tests and rebasing

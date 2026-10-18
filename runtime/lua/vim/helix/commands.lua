@@ -703,6 +703,66 @@ function Engine:surround(key)
   end
   self:replace(values)
 end
+function Engine:change_surround(key, replacement, count)
+  local open, close = '', ''
+  if replacement then
+    open, close = delimiters(replacement, self.surrounds)
+  end
+  local edits = {}
+  for _, s in ipairs(self.selections) do
+    local found = enclosing(self.text, s, key, count, self.surrounds)
+    if not found then
+      return false
+    end
+    edits[#edits + 1] = { start = found.start, finish = found.start + found.left, value = open }
+    edits[#edits + 1] = { start = found.finish - found.right, finish = found.finish, value = close }
+  end
+  table.sort(edits, function(a, b)
+    return a.start < b.start
+  end)
+  local ranges, values = {}, {}
+  for _, edit in ipairs(edits) do
+    local last = ranges[#ranges]
+    if last and edit.start == last.start and edit.finish == last.finish then
+      -- Multiple cursors can share a surround; edit each delimiter only once.
+      if edit.value ~= last.value then
+        return false
+      end
+    elseif last and edit.start < last.finish then
+      return false
+    else
+      edit.delta = (last and last.delta or 0) + #edit.value - (edit.finish - edit.start)
+      ranges[#ranges + 1], values[#values + 1] = edit, edit.value
+    end
+  end
+  local function mapped(position, right)
+    local low, high = 1, #ranges
+    while low <= high do
+      local middle = math.floor((low + high) / 2)
+      if ranges[middle].finish <= position then
+        low = middle + 1
+      else
+        high = middle - 1
+      end
+    end
+    local delta = high > 0 and ranges[high].delta or 0
+    local edit = ranges[low]
+    if edit and position > edit.start then
+      return edit.start + delta + (right and #edit.value or 0)
+    end
+    return position + delta
+  end
+  local selections, primary = copy(self.selections), self.primary
+  self:replace(values, false, ranges)
+  -- Only delimiters change. Retain the original content, direction and primary
+  -- selection, mapping endpoints inside a delimiter onto its replacement.
+  for _, s in ipairs(selections) do
+    s.start, s.finish, s.goal = mapped(s.start, false), mapped(s.finish, true), nil
+  end
+  self.selections, self.primary, self.mode = selections, primary, 'normal'
+  self:normalize()
+  return true
+end
 function Engine:line_insert(key)
   self.mode = 'insert'
   local ranges = {}
@@ -777,14 +837,28 @@ function Engine:input(key)
     return
   end
   local count = math.min(tonumber(self.count) or 1, 10000)
+  local literal = key:sub(1, 1) ~= '<' or #key == 1
   if self.pending == 'mi' or self.pending == 'ma' then
     self:textobject(key, self.pending == 'ma', count)
   elseif self.pending == 'ms' then
-    if key:sub(1, 1) ~= '<' or #key == 1 then
+    if literal then
       self:surround(key)
     end
+  elseif self.pending == 'mr' then
+    if literal then
+      self.pending = 'mr' .. key
+      return
+    end
+  elseif self.pending:sub(1, 2) == 'mr' then
+    if literal then
+      self:change_surround(self.pending:sub(3), key, count)
+    end
+  elseif self.pending == 'md' then
+    if literal then
+      self:change_surround(key, nil, count)
+    end
   elseif self.pending == 'm' then
-    if key == 'i' or key == 'a' or key == 's' then
+    if key == 'i' or key == 'a' or key == 's' or key == 'r' or key == 'd' then
       self.pending = 'm' .. key
       return
     end
@@ -793,7 +867,7 @@ function Engine:input(key)
   elseif self.pending:match('^[fFtT]$') then
     self:find(self.pending, key, count)
   elseif self.pending == 'r' then
-    if key:sub(1, 1) ~= '<' or #key == 1 then
+    if literal then
       local values = {}
       for i, s in ipairs(self.selections) do
         local p, n = s.start, 0

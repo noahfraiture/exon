@@ -52,7 +52,7 @@ default highlight links; that control needed no production change.
 | --- | --- |
 | Opt-in `h`/`hv` mode and mapping namespace | Implemented; default remains ordinary Vim. |
 | Oriented selections, primary selection, tracking through edits | Implemented in core, per window/buffer. |
-| `mim`, `ma/`, word/line objects, configured surrounds | Implemented as lexical commands in bundled Lua. |
+| `mim`, `ma/`, word/line objects, configured surrounds, `mr`/`md` | Implemented as lexical commands in bundled Lua. |
 | Multicursor change/delete/yank/paste and selection undo/redo | Implemented for the supported commands, using native text undo. |
 | Insert typing, deletion, arrows, tabs, newline/basic autoindent | Implemented for the vectorized set; other native Insert commands keep one primary context. |
 | Completion and built-in snippet placeholders | One context. Full multicursor completion/snippet groups are not implemented. |
@@ -60,7 +60,7 @@ default highlight links; that control needed no production change.
 | Unicode selection and case operations | Native grapheme boundaries and native case conversion; exercised by regressions. |
 | `o`/`O` indentation | Incomplete: lines are opened without native open-line indentation. |
 | Macro/dot-repeat parity | Not implemented for Helix commands. |
-| Syntax-aware objects, surround replacement/deletion, full mouse parity | Not implemented. |
+| Syntax-aware objects, full mouse parity | Not implemented. |
 | Third-party editing plugins | Require workflow validation; loading a plugin is not sufficient evidence. |
 | Selection metadata across editor restarts | Not persisted; native text undo-file format remains unchanged. |
 
