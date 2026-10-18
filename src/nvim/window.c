@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #include <assert.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -40,6 +41,7 @@
 #include "nvim/grid.h"
 #include "nvim/grid_defs.h"
 #include "nvim/hashtab.h"
+#include "nvim/helix.h"
 #include "nvim/input.h"
 #include "nvim/insert.h"
 #include "nvim/keycodes.h"
@@ -5566,6 +5568,7 @@ void free_wininfo(WinInfo *wip, buf_T *bp)
 /// @param tp  tab page "win" is in, NULL for current
 void win_free(win_T *wp, tabpage_T *tp)
 {
+  helix_window_free(wp);
   pmap_del(int)(&window_handles, wp->handle, NULL);
   clearFolding(wp);
 

@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #include <stdbool.h>
 #include <string.h>
 
@@ -14,6 +15,7 @@
 #include "nvim/event/multiqueue.h"
 #include "nvim/ex_getln.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/input.h"
 #include "nvim/insexpand.h"
 #include "nvim/keycodes.h"
@@ -217,6 +219,11 @@ void get_mode(char *buf)
     }
     if ((State & MODE_CMDLINE) && cmdline_overstrike()) {
       buf[i++] = 'r';
+    }
+  } else if ((State & MODE_HELIX) && !Visual.active) {
+    buf[i++] = 'h';
+    if (helix_extending()) {
+      buf[i++] = 'v';
     }
   } else if (State & MODE_TERMINAL) {
     buf[i++] = 't';

@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nvim -l
+-- Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 --- Generates Nvim :help docs from Lua/C docstrings.
 ---
 --- Usage:
@@ -138,6 +139,7 @@ local config = {
       'buffer.c',
       'command.c',
       'extmark.c',
+      'helix.c',
       'options.c',
       'tabpage.c',
       'ui.c',
@@ -181,6 +183,7 @@ local config = {
       'filetype.lua',
       'fs.lua',
       'glob.lua',
+      'helix.lua',
       'hl.lua',
       'iter.lua',
       'json.lua',
@@ -225,6 +228,7 @@ local config = {
       'runtime/lua/vim/filetype.lua',
       'runtime/lua/vim/fs.lua',
       'runtime/lua/vim/glob.lua',
+      'runtime/lua/vim/helix.lua',
       'runtime/lua/vim/hl.lua',
       'runtime/lua/vim/inspect.lua',
       'runtime/lua/vim/iter.lua',

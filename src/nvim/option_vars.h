@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #pragma once
 
 #include "nvim/eval/typval_defs.h"  // IWYU pragma: keep
@@ -291,6 +292,7 @@ EXTERN int p_hid;               ///< 'hidden'
 EXTERN char *p_hl;              ///< 'highlight'
 EXTERN int p_hls;               ///< 'hlsearch'
 EXTERN OptInt p_hi;             ///< 'history'
+EXTERN int p_hx;                ///< 'helix'
 EXTERN int p_arshape;           ///< 'arabicshape'
 EXTERN int p_icon;              ///< 'icon'
 EXTERN char *p_iconstring;      ///< 'iconstring'

@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // input.c: The input engine "bytes layer" (input_cmdatom.c is the "policy layer").
 //
 // - Get a character from the user, a script file, or the keybufs described below.
@@ -74,6 +75,7 @@
 #include "nvim/garray_defs.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/input.h"
 #include "nvim/input_cmdatom.h"
 #include "nvim/insert.h"
@@ -1735,7 +1737,7 @@ int vgetc(void)
       // In Terminal mode, however, this is not desirable. #16202 #16220
       // Also do not do this for mouse keys, as terminals encode mouse events as
       // CSI sequences, and MOD_MASK_ALT has a meaning even for unmapped mouse keys.
-      if (!no_mapping && KeyTyped && mod_mask == MOD_MASK_ALT
+      if (!no_mapping && KeyTyped && State != MODE_HELIX && mod_mask == MOD_MASK_ALT
           && !(State & MODE_TERMINAL) && !is_mouse_key(c)) {
         mod_mask = 0;
         // Un-record/un-report the consumed <M-x> (its K_SPECIAL KS_MODIFIER MOD_MASK_ALT prefix
@@ -2315,6 +2317,7 @@ static int handle_mapping(int *keylenp, const bool *timedout, int *mapdepth, boo
   // - in Ctrl-X mode (not started by complete()), and we get a valid char for that mode
   int tb_b1 = typebuf.tb_buf[typebuf.tb_off];
   if (no_mapping == 0
+      && !(local_State == MODE_HELIX && helix_pending_argument())
       && (no_zero_mapping == 0 || tb_b1 != '0')
       && (typebuf.tb_maplen == 0 || is_plug_map
           || (!(typebuf.tb_noremap[typebuf.tb_off] & (RM_NONE|RM_ABBR))))

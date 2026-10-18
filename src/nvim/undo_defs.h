@@ -1,9 +1,11 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #pragma once
 
 #include <time.h>
 
 #include "nvim/eval/typval_defs.h"
 #include "nvim/extmark_defs.h"
+#include "nvim/helix_defs.h"
 #include "nvim/mark_defs.h"
 #include "nvim/normal_defs.h"
 #include "nvim/option_defs.h"
@@ -48,6 +50,7 @@ struct u_header {
   int uh_walk;                    ///< used by undo_time()
   u_entry_T *uh_entry;            ///< pointer to first entry
   u_entry_T *uh_getbot_entry;     ///< pointer to where ue_bot must be set
+  HelixSnapshot *uh_helix;        ///< Native selection state (session-local)
   pos_T uh_cursor;                ///< Pre-change cursor pos; restored on undo.
   pos_T uh_cursor_after;          ///< Post-change pos; restored on redo. Not saved to undofile.
   colnr_T uh_cursor_vcol;         ///< Virtual column of uh_cursor ('virtualedit'), or -1.

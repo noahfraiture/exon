@@ -150,10 +150,10 @@ endif()
 set(NVIM_VERSION_MAJOR 0)
 set(NVIM_VERSION_MINOR 13)
 set(NVIM_VERSION_PATCH 0)
-set(NVIM_VERSION_PRERELEASE "-dev") # for package maintainers
+set(NVIM_VERSION_PRERELEASE "-helix-preview")
 
-# API level
-set(NVIM_API_LEVEL 15)        # Bump this after any API/stdlib change.
+# API level (keep upstream's prerelease level; Helix methods are experimental).
+set(NVIM_API_LEVEL 15)
 set(NVIM_API_LEVEL_COMPAT 0)  # Adjust this after a _breaking_ API change.
 set(NVIM_API_PRERELEASE true)
 

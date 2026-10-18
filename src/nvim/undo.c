@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // undo.c: multi level undo facility
 
 // The saved lines are stored in a list of lists (one for each buffer):
@@ -105,6 +106,7 @@
 #include "nvim/garray_defs.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/highlight_defs.h"
 #include "nvim/input.h"
 #include "nvim/input_cmdatom.h"
@@ -395,7 +397,7 @@ int u_savecommon(buf_T *buf, linenr_T top, linenr_T bot, linenr_T newbot, bool r
     if (get_undolevel(buf) >= 0) {
       // Make a new header entry.  Do this first so that we don't mess
       // up the undo info when out of memory.
-      uhp = xmalloc(sizeof(u_header_T));
+      uhp = xcalloc(1, sizeof(u_header_T));
       kv_init(uhp->uh_extmark);
 #ifdef U_DEBUG
       uhp->uh_magic = UH_MAGIC;
@@ -475,6 +477,7 @@ int u_savecommon(buf_T *buf, linenr_T top, linenr_T bot, linenr_T newbot, bool r
     uhp->uh_walk = 0;
     uhp->uh_entry = NULL;
     uhp->uh_getbot_entry = NULL;
+    uhp->uh_helix = helix_snapshot(curwin);
     uhp->uh_cursor = atom_origin_pos(buf);  // The pre-change position: undo restores it.
     if (virtual_active(curwin) && curwin->w_cursor.coladd > 0
         && equalpos(uhp->uh_cursor, curwin->w_cursor)) {
@@ -903,7 +906,7 @@ static bool serialize_uhp(bufinfo_T *bi, u_header_T *uhp)
 
 static u_header_T *unserialize_uhp(bufinfo_T *bi, const char *file_name)
 {
-  u_header_T *uhp = xmalloc(sizeof(u_header_T));
+  u_header_T *uhp = xcalloc(1, sizeof(u_header_T));
   CLEAR_POINTER(uhp);
 #ifdef U_DEBUG
   uhp->uh_magic = UH_MAGIC;
@@ -2298,6 +2301,7 @@ static void u_undoredo(bool undo, bool do_buf_event)
   u_entry_T *newlist = NULL;
   fmark_T namedm[NMARKS];
   u_header_T *curhead = curbuf->b_u_curhead;
+  HelixSnapshot *helix_after = helix_undo_capture(curhead->uh_helix);
 
   // Don't want autocommands using the undo structures here, they are
   // invalid till the end.
@@ -2332,6 +2336,7 @@ static void u_undoredo(bool undo, bool do_buf_event)
       unblock_autocmds();
       iemsg(_("E438: u_undo: line numbers wrong"));
       changed(curbuf);                // don't want UNCHANGED now
+      helix_snapshot_free(helix_after);
       return;
     }
 
@@ -2559,6 +2564,7 @@ static void u_undoredo(bool undo, bool do_buf_event)
     curwin->w_cursor = curhead->uh_cursor_after;
     check_cursor(curwin);
   }
+  helix_undo_restore(&curhead->uh_helix, helix_after);
 
   // Remember where we are for "g-" and ":earlier 10s".
   curbuf->b_u_seq_cur = curhead->uh_seq;
@@ -3042,6 +3048,7 @@ static void u_freeentries(buf_T *buf, u_header_T *uhp, u_header_T **uhpp)
   }
 
   kv_destroy(uhp->uh_extmark);
+  helix_snapshot_free(uhp->uh_helix);
 
 #ifdef U_DEBUG
   uhp->uh_magic = 0;

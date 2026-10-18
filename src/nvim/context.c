@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // Context = "full app state" abstraction. So named to disambiguate state.c, which is about the
 // event-loop state-machine, not "total program state".
 //
@@ -99,6 +100,12 @@ void ctx_free(Context *ctx)
 {
   buf_T *buf = handle_get_buffer(ctx->buf);
   if (buf != NULL) {  // Else the extmarks died with the buffer.
+    if (ctx->selection_start != 0) {
+      extmark_del_id(buf, ctx_marks_ns(), ctx->selection_start);
+    }
+    if (ctx->selection_end != 0) {
+      extmark_del_id(buf, ctx_marks_ns(), ctx->selection_end);
+    }
     for (size_t i = 0; i < ARRAY_SIZE(ctx->pos_marks); i++) {
       if (ctx->pos_marks[i] != 0) {
         extmark_del_id(buf, ctx_marks_ns(), ctx->pos_marks[i]);
@@ -111,6 +118,25 @@ void ctx_free(Context *ctx)
   api_free_string(ctx->gvars);
   api_free_array(ctx->funcs);
   *ctx = (Context)CONTEXT_INIT;
+}
+
+/// Track an oriented, half-open selection with the same ownership as its cursor Context.
+void ctx_selection_set(Context *ctx, buf_T *buf, pos_T start, pos_T end, bool backward)
+{
+  ctx->buf = buf->handle;
+  ctx->selection_backward = backward;
+  extmark_set_pos(buf, ctx_marks_ns(), &ctx->selection_start, start, true, false, false);
+  extmark_set_pos(buf, ctx_marks_ns(), &ctx->selection_end, end,
+                  equalpos(start, end), false, false);
+}
+
+/// Resolve a Context's optional selection without loading editor globals.
+bool ctx_selection_get(const Context *ctx, pos_T *start, pos_T *end)
+{
+  buf_T *buf = handle_get_buffer(ctx->buf);
+  return buf != NULL
+         && extmark_get_pos(buf, ctx_marks_ns(), ctx->selection_start, start)
+         && extmark_get_pos(buf, ctx_marks_ns(), ctx->selection_end, end);
 }
 
 /// Saves the editor state (ALL THE THINGS!!!1) to a context.

@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #pragma once
 
 #include <stdbool.h>
@@ -24,6 +25,9 @@ typedef struct {
   fmark_T last_insert;   ///< (Cache) '^ (b_last_insert).
   uint32_t pos_marks[6];  ///< Extmarks tracking the (Cache) positions above (in that order),
                           ///< across buffer edits. 0: none.
+  uint32_t selection_start;  ///< Optional half-open selection, tracked in the Context namespace.
+  uint32_t selection_end;
+  bool selection_backward;
   handle_T buf;      ///< Current buffer handle.
   String regs;       ///< Registers (shada msgpack string).
   String jumps;      ///< Jumplist (shada msgpack string).

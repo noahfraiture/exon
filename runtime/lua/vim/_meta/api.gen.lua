@@ -1585,6 +1585,29 @@ function vim.api.nvim_get_var(name) end
 --- @return any # Variable value
 function vim.api.nvim_get_vvar(name) end
 
+--- Applies a simultaneous edit transaction to the current buffer.
+--- Edits are [start_row, start_col, end_row, end_col, replacement_lines].
+--- Coordinates refer to the buffer before any edits. Ranges must be ordered
+--- and non-overlapping. The complete request is validated before mutation.
+--- @param edits any[] Array of edits, applied from last to first.
+--- @param join boolean Join an active insert transaction instead of starting an undo block.
+function vim.api.nvim_helix_apply_edits(edits, join) end
+
+--- Gets native half-open selections for a window.
+--- Each selection is [start_row, start_col, end_row, end_col, backward].
+--- Rows and byte columns are zero-based. The primary index is one-based.
+--- @param win integer Window handle, or 0 for current window.
+--- @return table<string,any> # State including selections, primary, extending and enabled.
+function vim.api.nvim_helix_get_state(win) end
+
+--- Sets the native selection collection without changing buffer text.
+--- Selections cannot be replaced during native Insert mode; the cursor engine owns them then.
+--- @param win integer Window handle, or 0 for current window.
+--- @param selections any[] Ordered non-overlapping half-open ranges.
+--- @param primary integer One-based primary selection index.
+--- @param extending boolean Whether motions extend existing selections.
+function vim.api.nvim_helix_set_selections(win, selections, primary, extending) end
+
 --- Queues raw user-input. Unlike `nvim_feedkeys()`, this uses a low-level input buffer and the call
 --- is non-blocking (input is processed asynchronously by the eventloop).
 ---

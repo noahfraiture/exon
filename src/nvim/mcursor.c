@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // Multicursor. Cursors are Context snapshots (mc_cursors) tracked by extmarks; user actions
 // (CmdAtoms) are replayed at each cursor at the "clock edge" (the cascade). See dev_arch.txt.
 
@@ -132,6 +133,69 @@ static bool mc_ins_joined;
 /// The mcursors, in creation order. Each is a Context snapshot: an extmark-tracked position
 /// plus editor state (registers) scoped to that cursor.
 static ContextVec mc_cursors = KV_INITIAL_VALUE;
+static bool mc_adopting;
+static handle_T mc_owner_window;
+
+/// Borrow the native cursor contexts. The collection remains owned by the engine.
+const ContextVec *mc_contexts(void)
+{
+  return &mc_cursors;
+}
+
+/// Transfer cursor ownership to a mode adapter after an insertion session has ended.
+/// Selection/mark metadata stays attached to the Context; only the native cursor mark is detached.
+ContextVec mc_contexts_take(void)
+{
+  assert(!mc_ins_cascading());
+  ContextVec contexts = mc_cursors;
+  mc_cursors = (ContextVec)KV_INITIAL_VALUE;
+  mc_owner_window = 0;
+  for (size_t i = 0; i < kv_size(contexts); i++) {
+    Context *ctx = &kv_A(contexts, i);
+    buf_T *buf = handle_get_buffer(ctx->buf);
+    if (buf != NULL && ctx->mark != 0) {
+      extmark_get_pos(buf, mc_ns(), ctx->mark, &ctx->pos);
+      extmark_del_id(buf, mc_ns(), ctx->mark);
+    }
+    ctx->mark = 0;
+  }
+  ctx_free(&mc_start.ctx);
+  mc_start.time = 0;
+  if (kv_size(contexts) > 0) {
+    mc_lua_enable(false);
+  }
+  return contexts;
+}
+
+/// Transfer an existing collection into the native insertion/cascade engine (no mirror).
+void mc_contexts_adopt(ContextVec *contexts, handle_T owner_window)
+{
+  assert(kv_size(mc_cursors) == 0);
+  assert(!mc_ins_cascading());
+  mc_cursors = *contexts;
+  mc_owner_window = owner_window;
+  *contexts = (ContextVec)KV_INITIAL_VALUE;
+  mc_adopting = true;
+  for (size_t i = 0; i < kv_size(mc_cursors); i++) {
+    Context *ctx = &kv_A(mc_cursors, i);
+    buf_T *buf = handle_get_buffer(ctx->buf);
+    if (buf != NULL) {
+      mc_mark_upd(buf, &ctx->mark, ctx->pos);
+    }
+  }
+  mc_adopting = false;
+  if (kv_size(mc_cursors) > 0) {
+    mc_start.time = (Timestamp)os_realtime();
+    ctx_save(&mc_start.ctx, kCtxRegs);
+    mc_lua_enable(true);
+  }
+}
+
+bool mc_context_position(const Context *ctx, pos_T *pos)
+{
+  buf_T *buf = handle_get_buffer(ctx->buf);
+  return buf != NULL && extmark_get_pos(buf, mc_ns(), ctx->mark, pos);
+}
 
 void mc_init(void)
 {
@@ -529,6 +593,7 @@ static void mc_cleanup(bool dedupe, const pos_T *primary, uint32_t keep_mark)
     // wins), or another cursor's mark is first at its position (first wins).
     const bool dup = dedupe && ctx->mark != 0
                      && ((curwin != NULL && buf == curbuf
+                          && (mc_owner_window == 0 || mc_owner_window == curwin->handle)
                           && primary != NULL && equalpos(ctx->pos, *primary)
                           && ctx->mark != keep_mark)
                          || mc_mark_at(buf, ctx->pos, 0) != ctx->mark);
@@ -1604,7 +1669,7 @@ Context *mc_add(buf_T *buf, pos_T pos)
 /// Deletes the new extmark if a cursor already exists there, or during cascade (not supported).
 void mc_on_extmark_set(buf_T *buf, uint32_t ns_id, uint32_t id, pos_T pos)
 {
-  if (ns_id != mc_ns()) {
+  if (ns_id != mc_ns() || mc_adopting) {
     return;
   }
   if (mc_replaying()) {

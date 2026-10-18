@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 //
 // buffer.c: functions for dealing with the buffer structure
 //
@@ -66,6 +67,7 @@
 #include "nvim/globals.h"
 #include "nvim/hashtab.h"
 #include "nvim/hashtab_defs.h"
+#include "nvim/helix.h"
 #include "nvim/help.h"
 #include "nvim/indent.h"
 #include "nvim/indent_c.h"
@@ -948,6 +950,7 @@ bool buf_freeall(buf_T *buf, int flags)
 /// itself (not the file, that must have been done already).
 static void free_buffer(buf_T *buf)
 {
+  helix_buffer_free(buf);
   pmap_del(int)(&buffer_handles, buf->b_fnum, NULL);
   buf_free_count++;
   // b:changedtick uses an item in buf_T.

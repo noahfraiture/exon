@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 //
 // normal.c:    Contains the main routine for processing characters in command
 //              mode.  Communicates closely with the code in ops.c to handle
@@ -49,6 +50,7 @@
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
 #include "nvim/grid.h"
+#include "nvim/helix.h"
 #include "nvim/help.h"
 #include "nvim/highlight.h"
 #include "nvim/highlight_defs.h"
@@ -526,6 +528,12 @@ void normal_enter(void)
 
 static void normal_prepare(NormalState *s)
 {
+  if (s->toplevel && cmdwin_type == 0 && helix_prepare()) {
+    CLEAR_FIELD(s->ca);
+    s->ca.oap = &s->oa;
+    s->ca.count1 = 1;
+    return;
+  }
   CLEAR_FIELD(s->ca);  // also resets s->ca.retval
   s->ca.oap = &s->oa;
 
@@ -1079,10 +1087,16 @@ normal_end:
 
 static int normal_execute(VimState *state, int key)
 {
+  NormalState *s = (NormalState *)state;
+  const bool helix_mapping = State == MODE_HELIX && (key == K_LUA || key == K_COMMAND);
+  if (State == MODE_HELIX && helix_handle_key(&key)) {
+    return 1;
+  }
+  if (State == MODE_HELIX) {
+    State = MODE_NORMAL;  // Explicit command-line/window command handoff.
+  }
   CmdFrame frame;
   atom_cmd_start(&frame, key);
-
-  NormalState *s = (NormalState *)state;
   s->command_finished = false;
   s->ctrl_w = false;                  // got CTRL-W command
   s->old_col = curwin->w_curswant;
@@ -1217,7 +1231,8 @@ static int normal_execute(VimState *state, int key)
     did_cursorhold = false;
   }
 
-  State = MODE_NORMAL;
+  // Native mapping payloads execute in the mode in which they were invoked.
+  State = helix_mapping ? MODE_HELIX : MODE_NORMAL;
 
   if (s->ca.nchar == ESC || s->ca.extra_char == ESC) {
     clearop(&s->oa);
@@ -1413,6 +1428,10 @@ static int normal_check(VimState *state)
   quit_more = false;
 
   state_no_longer_safe(NULL);
+
+  if (s->toplevel && cmdwin_type == 0) {
+    helix_refresh();
+  }
 
   // If skip redraw is set (for ":" in wait_return()), don't redraw now.
   // If there is nothing in the stuff_buffer or do_redraw is true,

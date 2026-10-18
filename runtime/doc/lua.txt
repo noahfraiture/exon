@@ -3127,6 +3127,99 @@ vim.glob.to_lpeg({pattern})                               *vim.glob.to_lpeg()*
 
 
 ==============================================================================
+Lua module: vim.helix                                              *vim.helix*
+
+vim.helix.Opts                                                *vim.helix.Opts*
+
+    Fields: ~
+      • {enabled}?    (`boolean`) Enable the mode (default true).
+      • {keymaps}?    (`table<string, string|function|false>`) Overrides in
+                      the h namespace.
+      • {surrounds}?  (`table<string, [string, string]>`) Custom {open, close}
+                      pairs.
+
+
+nil.M.statusline()                                        *nil.M.statusline()*
+
+vim.helix.delete_surround({key}, {count})        *vim.helix.delete_surround()*
+    Delete surrounds at every selection, retaining the selected content.
+
+    Parameters: ~
+      • {key}    (`string`) Existing pair key, or 'm' for the closest
+                 surround.
+      • {count}  (`integer?`) Select the nth enclosing pair (default 1).
+
+vim.helix.format()                                        *vim.helix.format()*
+    Format current selections explicitly rather than relying on Vim Visual
+    mode.
+
+vim.helix.get_state()                                  *vim.helix.get_state()*
+    Get native state, including parser information for a statusline.
+
+vim.helix.indent({right}, {count})                        *vim.helix.indent()*
+    Indent or unindent each selected line once, using native indentation
+    options.
+
+    Parameters: ~
+      • {right}  (`boolean?`) Indent right (default true).
+      • {count}  (`integer?`) Number of indentation levels.
+
+vim.helix.join({count})                                     *vim.helix.join()*
+    Join selected lines, or the next line when a selection occupies one line.
+
+    Parameters: ~
+      • {count}  (`integer?`) Minimum number of lines to join at each
+                 selection.
+
+vim.helix.replace_surround({from}, {to}, {count})  *vim.helix.replace_surround()*
+    Replace surrounds at every selection, retaining the selected content.
+
+    Parameters: ~
+      • {from}   (`string`) Existing pair key, or 'm' for the closest
+                 surround.
+      • {to}     (`string`) New built-in or configured pair key.
+      • {count}  (`integer?`) Select the nth enclosing pair (default 1).
+
+vim.helix.search({pattern}, {backward}, {count})          *vim.helix.search()*
+    Search the buffer with a Vim regex, selecting the next/previous match at
+    each cursor. Repetition wraps at EOF; zero-width matches are skipped.
+
+    Parameters: ~
+      • {pattern}   (`string`)
+      • {backward}  (`boolean?`)
+      • {count}     (`integer?`)
+
+vim.helix.select({pattern}, {split})                      *vim.helix.select()*
+    Select regex matches within the current selections.
+
+    Parameters: ~
+      • {pattern}  (`string`) Vim regular expression.
+      • {split}    (`boolean?`) Select pieces separated by matches instead.
+
+vim.helix.setup({opts})                                    *vim.helix.setup()*
+    Enable native Helix editing with optional command configuration. Built-in
+    commands/pairs require no entries. Supplied surrounds replace the previous
+    custom registry; mappings update only the supplied keys.
+
+    Parameters: ~
+      • {opts}  (`vim.helix.Opts?`)
+
+vim.helix.surround({key})                               *vim.helix.surround()*
+    Surround every selection using a built-in delimiter or configured key.
+
+    Parameters: ~
+      • {key}  (`string`) For example '(', '"', or a custom surround key.
+
+vim.helix.textobject({object}, {around}, {count})     *vim.helix.textobject()*
+    Select text inside/around a delimiter, word or closest surround (`m`).
+
+    Parameters: ~
+      • {object}  (`string`) For example 'm', '/', '(', 'w'.
+      • {around}  (`boolean?`) Include delimiters.
+      • {count}   (`integer?`) Select the nth enclosing object.
+
+
+==============================================================================
 Lua module: vim.hl                                                    *vim.hl*
 
 vim.hl.hl_op({opts})                                          *vim.hl.hl_op()*

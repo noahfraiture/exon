@@ -1,3 +1,58 @@
+# Exon
+
+Exon is a Neovim fork with an opt-in native, selection-first Helix editing mode.
+Core owns the mode, selections, editing and undo integration; bundled Lua
+implements commands and configuration. `mim`, `ma/`, word/line selection and
+multicursor editing are included.
+
+The default branch is `master`. This preview is based on Neovim 0.13 development
+and uses its native multicursor insertion and completion engine. The
+[feature review](contrib/helix/REVIEW.md) records the current limits.
+
+## Install with Nix
+
+```sh
+nix run github:noahfraiture/exon -- -u NONE --cmd 'set helix'
+# Or build without installing:
+nix build github:noahfraiture/exon
+./result/bin/exon
+```
+
+Add the repository as a flake input:
+
+```nix
+inputs.exon.url = "github:noahfraiture/exon";
+# Package: inputs.exon.packages.${pkgs.stdenv.hostPlatform.system}.default
+```
+
+Launch the fork with `exon` or `ex`; `nvim` remains available for compatibility.
+All three use the same executable, matching runtime and existing
+`~/.config/nvim/init.lua`. `nix run` launches `exon`. Enable the mode in `init.lua`:
+
+```lua
+vim.helix.setup()
+-- Or: vim.o.helix = true
+```
+
+Existing Helix configuration and the `neovim-helix` Nix package alias continue
+to work. See the [Nix guide](contrib/helix/NIX.md) for NixOS and Home Manager.
+
+## Documentation
+
+- [Installation, configuration and keybindings](HELIX.md)
+- [Command and API reference](runtime/doc/helix.txt), also `:help helix-mode`
+- [Nix inputs and installation](contrib/helix/NIX.md)
+- [Feature review and remaining work](contrib/helix/REVIEW.md)
+- [Testing](contrib/helix/TESTING.md) and [maintenance](contrib/helix/MAINTENANCE.md)
+- [Licenses and distribution](contrib/helix/DISTRIBUTION.md)
+
+Exon preserves Neovim's Git history and upstream fork relationship. Existing
+preview tags and release asset names are retained. New development is on
+`master`; `helix` is kept as a compatibility snapshot.
+
+<details>
+<summary>Upstream Neovim README</summary>
+
 <h1 align="center">
   <img src="https://raw.githubusercontent.com/neovim/neovim.github.io/master/static/logos/neovim-logo-300x87.png" alt="Neovim">
 
@@ -113,3 +168,5 @@ Apache 2.0 license, except for contributions copied from Vim (identified by the
 [Homebrew]: https://formulae.brew.sh/formula/neovim
 
 <!-- vim: set tw=80: -->
+
+</details>

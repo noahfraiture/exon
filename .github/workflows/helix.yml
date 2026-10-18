@@ -1,0 +1,106 @@
+name: Native Helix
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Optional new preview tag to publish after all checks pass'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: .deps
+          key: helix-deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake.deps/**') }}
+      - name: Build
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            # Match upstream macOS releases; avoid Homebrew gettext/frameworks.
+            make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_EXTRA_FLAGS="-DENABLE_LIBINTL=OFF -DCMAKE_FIND_FRAMEWORK=NEVER"
+          else
+            make CMAKE_BUILD_TYPE=RelWithDebInfo
+          fi
+      - name: Native mode and editor regression tests
+        run: TEST_FILE=test/functional/editor make functionaltest
+      - name: API compatibility
+        run: TEST_FILE=test/functional/api make functionaltest
+      - name: Built-in snippets
+        run: TEST_FILE=test/functional/lua/snippet_spec.lua make functionaltest
+      - name: LSP completion
+        run: TEST_FILE=test/functional/plugin/lsp/completion_spec.lua make functionaltest
+      - name: Package and test the installed binary and configuration
+        run: contrib/helix/package.sh build "$RUNNER_TEMP/neovim-helix-${{ runner.os }}-${{ runner.arch }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neovim-helix-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/neovim-helix-*.tar.gz
+            ${{ runner.temp }}/neovim-helix-*.tar.gz.sha256
+
+  sanitizers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CC: clang
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build dependencies
+        run: make deps
+      - name: Build with address and undefined-behavior sanitizers
+        run: |
+          cmake -S . -B build-sanitized -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN_UBSAN=ON -DENABLE_LTO=OFF
+          cmake --build build-sanitized -j 4
+      - name: Native Helix tests under sanitizers
+        run: TEST_FILE=test/functional/editor/helix_spec.lua cmake --build build-sanitized --target functionaltest
+
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    needs: [native, sanitizers]
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: neovim-helix-*
+          merge-multiple: true
+          path: release
+      - name: Publish tested preview bundles
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HELIX_RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          [[ "$HELIX_RELEASE_TAG" =~ ^helix-preview-[0-9][0-9A-Za-z._-]*$ ]]
+          cat contrib/helix/RELEASE.md > "$RUNNER_TEMP/helix-release.md"
+          printf '\nTested source: `%s`.\n\n[Passing workflow](https://github.com/%s/actions/runs/%s).\n' \
+            "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$RUNNER_TEMP/helix-release.md"
+          gh release create "$HELIX_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease --title "Native Helix $HELIX_RELEASE_TAG" \
+            --notes-file "$RUNNER_TEMP/helix-release.md" release/*.tar.gz release/*.sha256

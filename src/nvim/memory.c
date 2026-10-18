@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // Various routines dealing with allocation and deallocation of memory.
 
 #include <assert.h>
@@ -22,6 +23,7 @@
 #include "nvim/eval.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/highlight.h"
 #include "nvim/highlight_group.h"
 #include "nvim/input_cmdatom.h"
@@ -868,6 +870,7 @@ void free_all_mem(void)
     return;
   }
   entered_free_all_mem = true;
+  helix_free_all();
   // Don't want to trigger autocommands from here on.
   block_autocmds();
 

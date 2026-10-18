@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
@@ -98,7 +99,7 @@ static int coladvance2(win_T *wp, pos_T *pos, bool addspaces, bool finetune, col
   colnr_T col = 0;
   int head = 0;
 
-  int one_more = (State & MODE_INSERT)
+  int one_more = (State & (MODE_INSERT | MODE_HELIX))
                  || (State & MODE_TERMINAL)
                  || restart_edit != NUL
                  || (Visual.active && *p_sel != 'o')
@@ -340,7 +341,7 @@ void check_cursor_col(win_T *win)
     // - in Terminal mode
     // - in Visual mode and 'selection' isn't "old"
     // - 'virtualedit' is set
-    if ((State & MODE_INSERT) || restart_edit
+    if ((State & (MODE_INSERT | MODE_HELIX)) || restart_edit
         || (State & MODE_TERMINAL)
         || (Visual.active && *p_sel != 'o')
         || (cur_ve_flags & kOptVeFlagOnemore)

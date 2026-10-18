@@ -3521,6 +3521,13 @@ A jump table for the options with a short description can be found at |Q_op|.
 	When 'guifont' has a valid font and 'guifontwide' is empty Vim will
 	attempt to set 'guifontwide' to a matching double-width font.
 
+					*'helix'* *'hx'* *'nohelix'* *'nohx'*
+'helix' 'hx'		boolean	(default off)
+			global
+	Enable native selection-first Helix editing in ordinary editable buffers.
+	Helix normal mode has its own `h` mapping namespace. Insert mode keeps
+	native insertion and its existing mappings. See |helix-mode|.
+
 						*'helpfile'* *'hf'*
 'helpfile' 'hf'		string	(default "$VIMRUNTIME/doc/help.txt")
 			global

@@ -1,3 +1,4 @@
+-- Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 --- @brief
 --- Snippet expansion and navigation.
 ---
@@ -388,7 +389,9 @@ local function select_tabstop(tabstop)
     local keys = {
       mode ~= 'n' and '<Esc>' or '',
       ('<Cmd>call cursor(%s,%s)<CR>'):format(range[1] + 1, range[2] + 1),
-      'v',
+      -- A snippet placeholder deliberately uses Vim Select semantics: typed
+      -- text replaces it. Enter Visual explicitly in selection-first mode.
+      vim.o.helix and vim.api.nvim_helix_get_state(0).enabled and '<Cmd>normal! v<CR>' or 'v',
       ('<Cmd>call cursor(%s,%s)<CR>'):format(range[3] + 1, range[4]),
       'o<c-g><c-r>_',
     }

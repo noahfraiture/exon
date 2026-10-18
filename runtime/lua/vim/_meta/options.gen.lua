@@ -3287,6 +3287,16 @@ vim.o.gfw = vim.o.guifontwide
 vim.go.guifontwide = vim.o.guifontwide
 vim.go.gfw = vim.go.guifontwide
 
+--- Enable native selection-first Helix editing in ordinary editable buffers.
+--- Helix normal mode has its own `h` mapping namespace. Insert mode keeps
+--- native insertion and its existing mappings. See `helix-mode`.
+---
+--- @type boolean
+vim.o.helix = false
+vim.o.hx = vim.o.helix
+vim.go.helix = vim.o.helix
+vim.go.hx = vim.go.helix
+
 --- Name of the main help file.  All distributed help files should be
 --- placed together in one directory.  Additionally, all "doc" directories
 --- in 'runtimepath' will be used.

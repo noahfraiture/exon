@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 // mapping.c: Code for mappings and abbreviations.
 
 #include <assert.h>
@@ -200,7 +201,9 @@ void map_mode_to_chars(int mode, char *buf)
   FUNC_ATTR_NONNULL_ALL
 {
   char *p = buf;
-  if ((mode & (MODE_INSERT | MODE_CMDLINE)) == (MODE_INSERT | MODE_CMDLINE)) {
+  if (mode & MODE_HELIX) {
+    *p++ = 'h';
+  } else if ((mode & (MODE_INSERT | MODE_CMDLINE)) == (MODE_INSERT | MODE_CMDLINE)) {
     *p++ = '!';                           // :map!
   } else if (mode & MODE_INSERT) {
     *p++ = 'i';                           // :imap
@@ -1021,7 +1024,9 @@ static int get_map_mode(char **cmdp, bool forceit)
 
   char *p = *cmdp;
   int modec = (uint8_t)(*p++);
-  if (modec == 'i') {
+  if (modec == 'h') {
+    mode = MODE_HELIX;                                                   // Helix API mappings
+  } else if (modec == 'i') {
     mode = MODE_INSERT;                                                  // :imap
   } else if (modec == 'l') {
     mode = MODE_LANGMAP;                                                 // :lmap
@@ -1145,6 +1150,7 @@ bool map_to_exists(const char *const str, const char *const modechars, const boo
       (mode) |= (modeflags); \
     } \
   } while (0)
+  MAPMODE(mode, modechars, 'h', MODE_HELIX);
   MAPMODE(mode, modechars, 'n', MODE_NORMAL);
   MAPMODE(mode, modechars, 'v', MODE_VISUAL | MODE_SELECT);
   MAPMODE(mode, modechars, 'x', MODE_VISUAL);
@@ -2285,6 +2291,8 @@ static int get_map_mode_string(const char *const mode_string, const bool abbr)
       tmode = MODE_LANGMAP; break;
     case 'c':
       tmode = MODE_CMDLINE; break;
+    case 'h':
+      tmode = MODE_HELIX; break;
     case 'n':
       tmode = MODE_NORMAL; break;
     case 'x':

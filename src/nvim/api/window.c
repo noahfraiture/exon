@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -19,6 +20,7 @@
 #include "nvim/ex_docmd.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
+#include "nvim/helix.h"
 #include "nvim/lua/executor.h"
 #include "nvim/memory_defs.h"
 #include "nvim/message.h"
@@ -131,6 +133,7 @@ void nvim_win_set_cursor(Window win, ArrayOf(Integer, 2) pos, Error *err)
   w->w_cursor.coladd = 0;
   // When column is out of range silently correct it.
   check_cursor_col(w);
+  helix_cursor_set(w);
 
   // Make sure we stick in this column.
   w->w_set_curswant = true;

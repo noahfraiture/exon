@@ -3511,6 +3511,54 @@ nvim__ns_set({ns_id}, {opts})                                 *nvim__ns_set()*
 
 
 ==============================================================================
+Helix Functions                                                    *api-helix*
+
+nvim_helix_apply_edits({edits}, {join})             *nvim_helix_apply_edits()*
+    Applies a simultaneous edit transaction to the current buffer. Edits are
+    |start_row, start_col, end_row, end_col, replacement_lines|. Coordinates
+    refer to the buffer before any edits. Ranges must be ordered and
+    non-overlapping. The complete request is validated before mutation.
+
+    Attributes: ~
+        not allowed when |textlock| is active
+        Since: 0.13.0
+
+    Parameters: ~
+      • {edits}  (`any[]`) Array of edits, applied from last to first.
+      • {join}   (`boolean`) Join an active insert transaction instead of
+                 starting an undo block.
+
+nvim_helix_get_state({win})                           *nvim_helix_get_state()*
+    Gets native half-open selections for a window. Each selection is
+    |start_row, start_col, end_row, end_col, backward|. Rows and byte columns
+    are zero-based. The primary index is one-based.
+
+    Attributes: ~
+        Since: 0.13.0
+
+    Parameters: ~
+      • {win}  (`integer`) Window handle, or 0 for current window.
+
+    Return: ~
+        (`table<string,any>`) State including selections, primary, extending
+        and enabled.
+
+nvim_helix_set_selections({win}, {selections}, {primary}, {extending})  *nvim_helix_set_selections()*
+    Sets the native selection collection without changing buffer text.
+    Selections cannot be replaced during native Insert mode; the cursor engine
+    owns them then.
+
+    Attributes: ~
+        Since: 0.13.0
+
+    Parameters: ~
+      • {win}         (`integer`) Window handle, or 0 for current window.
+      • {selections}  (`any[]`) Ordered non-overlapping half-open ranges.
+      • {primary}     (`integer`) One-based primary selection index.
+      • {extending}   (`boolean`) Whether motions extend existing selections.
+
+
+==============================================================================
 Options Functions                                                *api-options*
 
 nvim_get_all_options_info()                      *nvim_get_all_options_info()*
