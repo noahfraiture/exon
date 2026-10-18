@@ -376,6 +376,60 @@ function M.statusline()
   )
 end
 
+local page_keys = {
+  ['<C-f>'] = '<C-f>',
+  ['<C-b>'] = '<C-b>',
+  ['<PageDown>'] = '<C-f>',
+  ['<PageUp>'] = '<C-b>',
+  ['<C-d>'] = '<C-d>',
+  ['<C-u>'] = '<C-u>',
+}
+local view_keys = vim.tbl_extend('force', page_keys, {
+  z = 'zz',
+  c = 'zz',
+  t = 'zt',
+  b = 'zb',
+  j = '<C-e>',
+  k = '<C-y>',
+  ['<Down>'] = '<C-e>',
+  ['<Up>'] = '<C-y>',
+})
+
+local function native_view(e, parser, batches, key, count)
+  local win, buf = api.nvim_get_current_win(), api.nvim_get_current_buf()
+  local tick, cursor = api.nvim_buf_get_changedtick(buf), api.nvim_win_get_cursor(win)
+  -- Alignment counts must not become Vim's "go to line N, then align" command.
+  local prefix = key:sub(1, 1) == 'z' and '' or count
+  vim.cmd.normal({
+    args = { prefix .. api.nvim_replace_termcodes(key, true, false, true) },
+    bang = true,
+  })
+  if
+    api.nvim_get_current_win() ~= win
+    or api.nvim_get_current_buf() ~= buf
+    or api.nvim_buf_get_changedtick(buf) ~= tick
+    or parsers[win] ~= parser
+    or not api.nvim_helix_get_state(win).enabled
+  then
+    return
+  end
+  -- :normal! deliberately collapses Helix selections. View commands retain
+  -- them, updating only the primary if native scrolling had to move its head.
+  local view = vim.fn.winsaveview()
+  if not vim.deep_equal(cursor, api.nvim_win_get_cursor(win)) then
+    local state = api.nvim_helix_get_state(win)
+    local s = state.selections[state.primary]
+    e.selections[e.primary] = {
+      start = commands.offset(e.text, s[1], s[2]),
+      finish = commands.offset(e.text, s[3], s[4]),
+      backward = s[5] or nil,
+    }
+    e:normalize()
+  end
+  commit(e, parser, batches)
+  vim.fn.winrestview(view)
+end
+
 --- Core input entry point. Unlike vim.on_key this runs after native Helix
 --- mappings, outside textlock, without consuming or replaying Vim operators.
 --- @private
@@ -387,13 +441,31 @@ function M._dispatch(key, mouse)
     return 'native'
   end
   local e, parser, batches = model()
+  if e.pending == 'z' or e.pending == 'Z' then
+    local action = view_keys[key]
+    e.pending = e.pending == 'Z' and key ~= '<Esc>' and key ~= '<C-c>' and 'Z' or ''
+    local count = e.count
+    e.count, parser.pending, parser.count, parser.register_name = '', e.pending, '', nil
+    if action then
+      native_view(e, parser, batches, action, count)
+    end
+    return
+  end
   if parser.pending == 'register' then
     parser.register_name = key:match('^[%w"*+%-%_]$') and key or nil
     parser.pending = ''
     return
   end
   if e.pending == '' then
-    if key == '"' then
+    if key == 'z' or key == 'Z' then
+      parser.pending = key
+      return
+    elseif page_keys[key] then
+      local count = e.count
+      e.count, parser.count, parser.register_name = '', '', nil
+      native_view(e, parser, batches, page_keys[key], count)
+      return
+    elseif key == '"' then
       parser.pending = 'register'
       return
     elseif key == '/' or key == '?' then

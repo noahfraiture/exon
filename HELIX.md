@@ -147,6 +147,11 @@ attached language server supports completion; it does not install servers.
 | `d y p P R r` | Delete, yank, paste, replace selections/characters |
 | `"` + register | Choose a named register, including clipboard registers |
 | `u`, `U` | Native undo / redo, including session-local selection metadata |
+| `zz`, `zc`, `zt`, `zb` | Center the cursor line / align it at the top or bottom |
+| `zj`, `zk`, `z` + down/up arrow | Scroll down / up, with an optional prefix count |
+| `Ctrl-F`, `Ctrl-B`, `PageDown`, `PageUp` | Native page down / up |
+| `Ctrl-D`, `Ctrl-U` | Native half-page down / up |
+| `Z` + view commands, `Esc` | Sticky view commands / leave view mode |
 | `~`, backtick, `Alt-backtick` | Case changes |
 | `:`, `Ctrl-W` | Native command line / window commands |
 
@@ -155,6 +160,12 @@ ZWJ emoji. Overlapping selections and identical insertion gaps merge. Adjacent
 selections remain distinct until an edit brings them to the same position.
 Word classes use Neovim's Unicode classification and respect 'iskeyword'.
 Case transforms also use Neovim's native Unicode conversion.
+
+View commands reuse Neovim's viewport, including folds, wrapped lines and
+`scrolloff`. The `z` prefix ends after one action; `Z` stays active until Escape.
+Paging keys also work after either prefix. Alignment preserves selections;
+scrolling preserves secondary selections and moves the primary only when native
+scrolling moves the cursor. Horizontal `zm` alignment is not implemented.
 
 Textobjects are lexical delimiter/word/paragraph objects. They do not yet use
 tree-sitter to distinguish syntax nodes or delimiters inside comments/strings.

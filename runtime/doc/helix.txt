@@ -49,6 +49,16 @@ all text and selections unchanged. Escape cancels either replacement argument.
 x selects lines; C adds a selection on the next line; comma keeps the primary.
 i/a/c insert/append/change at selections. u/U use native undo/redo.
 
+View commands use Neovim's existing viewport rules, including 'scrolloff',
+folding and wrapped lines. zz/zc center the cursor line; zt/zb align it at the
+top/bottom. zj/zk (or z then a down/up arrow) scroll down/up; a count before z
+sets the number of lines. CTRL-F/CTRL-B and PageDown/PageUp page down/up;
+CTRL-D/CTRL-U scroll half a page. These paging keys work after z as well.
+Z enters sticky view mode: repeat view actions until Escape or CTRL-C.
+Alignment retains selections. Scrolling keeps secondary selections, updating
+the primary only when native scrolling moves the cursor. Horizontal zm
+alignment is not implemented.
+
 Special, readonly and unmodifiable buffers use Vim editing. Set b:helix to
 v:false to exclude another buffer. vim.pack can install companion plugins;
 the native mode itself requires this fork's executable and matching runtime.

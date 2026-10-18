@@ -1,5 +1,13 @@
 # Verification record
 
+View follow-up (2026-10-18) adds seven regressions for native centering and
+alignment, folds/wrapped lines in a split, counted scrolling and paging,
+selection/primary retention and merging, sticky view mode, literal arguments,
+cancellation and buffer changes during a native command. The Helix suite now
+has 116 tests. A local macOS ARM64 Nix build passed all 116 and the installed
+`exon`, `ex` and `nvim` configuration smoke checks. These are viewport/command
+checks, not a claim of complete Helix view-mode parity.
+
 Mouse follow-up (2026-10-18) adds 22 regressions across single-grid and multigrid
 UIs: API/terminal clicks, pending-command cancellation, wheel clamping and
 secondary selection retention, horizontal scrolling, Unicode/reverse/exclusive

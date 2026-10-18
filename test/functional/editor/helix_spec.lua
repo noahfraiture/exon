@@ -35,6 +35,158 @@ describe('native Helix mode', function()
     eq('one three', api.nvim_get_current_line())
   end)
 
+  describe('view commands', function()
+    before_each(function()
+      Screen.new(40, 12)
+      command('set laststatus=0 scrolloff=2 sidescrolloff=0 nowrap')
+      local lines = {}
+      for i = 1, 150 do
+        lines[i] = ('line %03d alpha beta'):format(i)
+      end
+      text(lines)
+    end)
+
+    local original = { { 9, 0, 9, 4, false }, { 79, 0, 79, 8, true } }
+    local function reset(helix)
+      command(helix and 'set helix' or 'set nohelix')
+      api.nvim_win_set_cursor(0, { 80, 0 })
+      if helix then
+        api.nvim_helix_set_selections(0, original, 2, true)
+      end
+      n.fn.winrestview({ topline = 75, lnum = 80, col = 0 })
+      command('redraw')
+    end
+
+    it('centers and aligns using native view geometry without changing selections', function()
+      for _, keys in ipairs({ 'zz', 'zc', 'zt', 'zb' }) do
+        reset(false)
+        feed(keys == 'zc' and 'zz' or keys)
+        local expected = n.fn.winsaveview()
+        reset(true)
+        feed(keys)
+        eq(expected, n.fn.winsaveview())
+        local state = api.nvim_helix_get_state(0)
+        eq(original, state.selections)
+        eq(2, state.primary)
+        eq(true, state.extending)
+        eq('', exec_lua('return vim.helix.get_state().pending'))
+      end
+    end)
+
+    it('uses native centering for wrapped lines and folds in a split window', function()
+      command('vsplit | set wrap foldmethod=manual')
+      api.nvim_buf_set_lines(
+        0,
+        0,
+        -1,
+        true,
+        vim.tbl_map(function(i)
+          return ('line %03d '):format(i) .. string.rep('wide ', 12)
+        end, vim.fn.range(1, 150))
+      )
+      command('70,78fold')
+      reset(false)
+      feed('zz')
+      local expected = n.fn.winsaveview()
+      reset(true)
+      feed('4zz') -- Alignment counts do not become a Vim line-number jump.
+      eq(expected, n.fn.winsaveview())
+      eq(original, api.nvim_helix_get_state(0).selections)
+    end)
+
+    it('scrolls and pages with native cursor clamping, retaining secondary selections', function()
+      for _, keys in ipairs({
+        { '3zj', '3<C-e>' },
+        { '3zk', '3<C-y>' },
+        { 'z<Down>', '<C-e>' },
+        { 'z<Up>', '<C-y>' },
+        { '<C-f>', '<C-f>' },
+        { '<PageUp>', '<PageUp>' },
+        { 'z<C-d>', '<C-d>' },
+        { 'z<C-u>', '<C-u>' },
+      }) do
+        reset(false)
+        feed(keys[2])
+        local expected, cursor = n.fn.winsaveview(), api.nvim_win_get_cursor(0)
+        reset(true)
+        feed(keys[1])
+        eq(expected, n.fn.winsaveview())
+        eq(cursor, api.nvim_win_get_cursor(0))
+        local state = api.nvim_helix_get_state(0)
+        eq(2, #state.selections)
+        eq(original[1], state.selections[1])
+        eq(2, state.primary)
+        eq(true, state.extending)
+        if cursor[1] == 80 then
+          eq(original[2], state.selections[2])
+        else
+          eq({ cursor[1] - 1, cursor[2], cursor[1] - 1, cursor[2] + 1, false }, state.selections[2])
+        end
+      end
+    end)
+
+    it('keeps sticky view mode until Escape and treats command arguments literally', function()
+      reset(true)
+      exec_lua([[vim.keymap.set('h', 'j', function() vim.g.unexpected_view_mapping = 1 end)]])
+      feed('Zjj')
+      eq(77, n.fn.winsaveview().topline)
+      eq('Z', exec_lua('return vim.helix.get_state().pending'))
+      eq(0, n.fn.exists('g:unexpected_view_mapping'))
+      feed('<Esc>')
+      eq('', exec_lua('return vim.helix.get_state().pending'))
+      eq(true, api.nvim_helix_get_state(0).extending)
+      feed('j')
+      eq(1, api.nvim_get_var('unexpected_view_mapping'))
+    end)
+
+    it('cancels incomplete and unknown view commands without editing', function()
+      reset(true)
+      local tick = api.nvim_buf_get_changedtick(0)
+      feed('3z<Esc>zd')
+      eq(tick, api.nvim_buf_get_changedtick(0))
+      eq(original, api.nvim_helix_get_state(0).selections)
+      eq('', exec_lua('return vim.helix.get_state().pending'))
+      eq('', exec_lua('return vim.helix.get_state().count'))
+      feed('z')
+      command('vnew')
+      feed('iother<Esc>')
+      eq('other', api.nvim_get_current_line())
+    end)
+
+    it('reorders and merges a scrolled primary that meets another selection', function()
+      reset(false)
+      feed('70<C-y>')
+      local row = api.nvim_win_get_cursor(0)[1] - 1
+      reset(true)
+      api.nvim_helix_set_selections(
+        0,
+        { { row, 0, row, 4, true }, { 79, 0, 79, 4, false } },
+        2,
+        false
+      )
+      feed('70zk')
+      local state = api.nvim_helix_get_state(0)
+      eq(1, #state.selections)
+      eq({ 'line' }, selected())
+      eq(1, state.primary)
+    end)
+
+    it('does not restore stale selections after a native command changes the buffer', function()
+      reset(true)
+      exec_lua([[
+        vim.api.nvim_create_autocmd('ModeChanged', {
+          once = true,
+          callback = function()
+            vim.api.nvim_buf_set_lines(0, 0, -1, true, { 'changed' })
+          end,
+        })
+      ]])
+      feed('zz')
+      eq({ 'changed' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      eq('', api.nvim_get_vvar('errmsg'))
+    end)
+  end)
+
   for _, multigrid in ipairs({ false, true }) do
     describe('mouse (multigrid=' .. tostring(multigrid) .. ')', function()
       before_each(function()
