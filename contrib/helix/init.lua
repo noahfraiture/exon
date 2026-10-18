@@ -3,6 +3,7 @@
 vim.helix.setup()
 
 vim.o.number = true
+vim.o.mouse = 'a'
 vim.o.termguicolors = true
 vim.o.expandtab = true
 vim.o.shiftwidth = 2

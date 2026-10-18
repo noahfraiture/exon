@@ -75,6 +75,11 @@ and macro/dot-repeat parity remain outside this baseline. The command layer
 still reads a temporary document snapshot, so large-file scaling needs more
 work. Persistent undo saves text, but not extra Helix selection metadata.
 
+Basic mouse input is covered: click placement, character/line selection on
+release, vertical/horizontal wheels, inactive-window scrolling, mapping
+overrides and native Insert clicks. Blockwise mouse selections keep Vim Visual
+behavior; no custom mouse geometry or scrolling implementation is maintained.
+
 The fork still has rebase-sensitive integration points: native mode dispatch,
 Context range tracking/ownership transfer, cursor API boundaries, and selection
 undo metadata. Keep these adapters small and rerun the product examples after

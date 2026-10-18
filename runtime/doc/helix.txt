@@ -64,6 +64,11 @@ native indentation/whitespace options; disjoint ranges undo together.
 vim.helix.indent(true, 2) indents two levels; vim.helix.join() joins lines.
 Insert cursor movements retain native undo boundaries. Macro/dot-repeat parity
 is outside the required editing baseline.
+Mouse input uses native hit testing and wheel scrolling. Set 'mouse' to "a" for
+terminal mouse reporting. A text click replaces the selections; a characterwise
+drag, double-clicked word or triple-clicked line becomes a Helix selection on
+release. Blockwise mouse selections retain Vim Visual behavior. Wheel scrolling
+keeps secondary selections, while the primary follows native cursor clamping.
 Extra selection undo metadata is session-local; text undo-file compatibility is
 preserved. Full Helix command and plugin compatibility is not implied.
 

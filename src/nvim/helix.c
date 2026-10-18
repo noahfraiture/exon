@@ -35,6 +35,8 @@
 #include "nvim/memline.h"
 #include "nvim/memory.h"
 #include "nvim/message.h"
+#include "nvim/mouse.h"
+#include "nvim/normal.h"
 #include "nvim/option_vars.h"
 #include "nvim/state.h"
 #include "nvim/state_defs.h"
@@ -391,6 +393,63 @@ void helix_cursor_set(win_T *wp)
   }
 }
 
+/// Adopt native mouse geometry, keeping Visual's drag anchor until release.
+void helix_mouse_selection(bool release)
+{
+  if (!helix_enabled(curwin) || inserting || (State & MODE_INSERT)) {
+    return;
+  }
+  HelixWindow *hw = window_state(curwin, true);
+  if (Visual.active) {
+    // Blockwise selection retains native Vim behavior.
+    extmark_clear(curbuf, hw->decorations, 0, 0, MAXLNUM, MAXCOL);
+    hw->visible = false;
+    if (!release || Visual.mode == Ctrl_V) {
+      return;
+    }
+    if (Visual.mode == 'v') {
+      unadjust_for_sel();
+    }
+    bool backward = position_compare(curwin->w_cursor, Visual.start) < 0;
+    pos_T start = backward ? curwin->w_cursor : Visual.start;
+    pos_T end = backward ? Visual.start : curwin->w_cursor;
+    if (Visual.mode == 'V') {
+      start.col = 0;
+      end.col = (colnr_T)strlen(ml_get_buf(curbuf, end.lnum));
+    }
+    HelixSelection selection = { .start = start, .end = next_position(curbuf, end),
+                                 .backward = backward };
+    end_visual_mode();
+    redraw_later(curwin, UPD_INVERTED);
+    store_selections(curwin, hw, &selection, 1, 0, false);
+    render_selections(curwin, hw);
+  } else {
+    helix_cursor_set(curwin);
+  }
+}
+
+/// Native wheel scrolling may clamp the primary cursor into the viewport.
+/// Update that cursor only; preserve all other tracked selections.
+void helix_mouse_scroll(void)
+{
+  if (!helix_enabled(curwin) || inserting || Visual.active || (State & MODE_INSERT)) {
+    return;
+  }
+  HelixWindow *hw = window_state(curwin, true);
+  if (equalpos(curwin->w_cursor, hw->cursor)) {
+    return;
+  }
+  HelixSelection *items = xcalloc(hw->count, sizeof(*items));
+  for (size_t i = 0; i < hw->count; i++) {
+    items[i] = selection_at(curwin, hw, i);
+  }
+  items[hw->primary] = (HelixSelection){ .start = clamp_position(curbuf, curwin->w_cursor) };
+  items[hw->primary].end = next_position(curbuf, items[hw->primary].start);
+  store_selections(curwin, hw, items, hw->count, hw->primary, hw->extending);
+  xfree(items);
+  render_selections(curwin, hw);
+}
+
 void helix_refresh(void)
 {
   if (mc_replaying()) {
@@ -681,8 +740,8 @@ static Object call_command(int key, Error *err)
     bytes[utf_char2bytes(key, bytes)] = NUL;
     name = bytes;
   }
-  Object args[] = { CSTR_AS_OBJ(name) };
-  return nlua_call_ref(command_ref, NULL, ((Array){ .items = args, .size = 1 }),
+  Object args[] = { CSTR_AS_OBJ(name), BOOLEAN_OBJ(is_mouse_key(key)) };
+  return nlua_call_ref(command_ref, NULL, ((Array){ .items = args, .size = 2 }),
                        kRetObject, NULL, err);
 }
 

@@ -379,8 +379,13 @@ end
 --- Core input entry point. Unlike vim.on_key this runs after native Helix
 --- mappings, outside textlock, without consuming or replaying Vim operators.
 --- @private
-function M._dispatch(key)
+function M._dispatch(key, mouse)
   key = name(key)
+  if mouse then
+    -- Mouse events use native hit testing/scrolling and interrupt pending commands.
+    parsers[api.nvim_get_current_win()] = nil
+    return 'native'
+  end
   local e, parser, batches = model()
   if parser.pending == 'register' then
     parser.register_name = key:match('^[%w"*+%-%_]$') and key or nil

@@ -259,6 +259,16 @@ several selections share it), respecting `shiftwidth`, `expandtab` and
 using native whitespace and `joinspaces` rules. Disjoint ranges undo together.
 No extra keymaps are required; these are configurable defaults.
 
+Mouse input uses Neovim's native hit testing and scrolling. Enable terminal
+mouse reporting with `vim.o.mouse = 'a'`. A text click replaces the selection
+collection with the clicked character. Dragging, double-clicking a word and
+triple-clicking a line become Helix selections on release. Blockwise mouse
+selections keep Vim Visual behavior. Wheel scrolling targets the hovered window
+and preserves secondary selections; if native scrolling clamps the primary
+cursor into the viewport, its selection moves to that character. Native Insert
+clicks reposition the primary cursor; subsequent typing still uses all cursors.
+Mouse bindings can be overridden in the `h` namespace.
+
 Other current boundaries include macro/dot-repeat parity, full Helix command
 coverage, mouse selection parity and syntax-aware textobjects. Dot-repeat is
 optional scope, not a migration requirement. Persistent undo files retain

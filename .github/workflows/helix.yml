@@ -45,6 +45,8 @@ jobs:
           fi
       - name: Native mode and editor regression tests
         run: TEST_FILE=test/functional/editor make functionaltest
+      - name: Upstream mouse regression tests
+        run: TEST_FILE=test/functional/ui/mouse_spec.lua make functionaltest
       - name: API compatibility
         run: TEST_FILE=test/functional/api make functionaltest
       - name: Built-in snippets

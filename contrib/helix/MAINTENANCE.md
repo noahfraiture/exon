@@ -24,6 +24,9 @@ remote for Neovim updates: `origin/master` contains Exon, while
   indentation/joining. `contrib/helix/init.lua` is optional configuration.
 * Native text undo owns history; Helix adds session-local oriented selection
   metadata. Native Insert cursor movements keep upstream undo boundaries.
+* Mouse geometry and scrolling remain in upstream `mouse.c`. Two adapters adopt
+  completed selections and synchronize a wheel-clamped primary cursor; preserve
+  the hovered-window scope and secondary selections when updating this code.
 
 The rebase hotspots are normal/input dispatch, Context range tracking and
 ownership transfer, explicit cursor entry points, undo metadata, and lifecycle

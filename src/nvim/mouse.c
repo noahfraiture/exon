@@ -1,3 +1,4 @@
+// Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -21,6 +22,7 @@
 #include "nvim/globals.h"
 #include "nvim/grid.h"
 #include "nvim/grid_defs.h"
+#include "nvim/helix.h"
 #include "nvim/input.h"
 #include "nvim/input_cmdatom.h"
 #include "nvim/insert.h"
@@ -1006,6 +1008,9 @@ bool do_mouse(oparg_T *oap, int c, int dir, int count, bool fixindent)
     redraw_cmdline = true;
   }
 
+  if ((jump_flags & IN_BUFFER) && !(jump_flags & (MOUSE_FOLD_OPEN | MOUSE_FOLD_CLOSE))) {
+    helix_mouse_selection(!is_click && !is_drag);
+  }
   return moved;
 }
 
@@ -1657,6 +1662,8 @@ void nv_mousescroll(cmdarg_T *cap)
 
   // Call the common mouse scroll function shared with other modes.
   do_mousescroll(cap);
+
+  helix_mouse_scroll();
 
   curwin->w_redr_status = true;
   curwin = old_curwin;

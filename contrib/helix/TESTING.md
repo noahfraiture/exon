@@ -1,5 +1,14 @@
 # Verification record
 
+Mouse follow-up (2026-10-18) adds 20 regressions across single-grid and multigrid
+UIs: API/terminal clicks, pending-command cancellation, wheel clamping and
+secondary selection retention, horizontal scrolling, Unicode/reverse/exclusive
+drags, double/triple clicks, inactive windows, mouse mappings and native Insert
+clicks. These reproduce the dropped click/wheel events before the fix. The
+Helix suite now has 107 tests. Local Linux Debug verification passes the full
+editor suite (846 passed, 5 skipped) and upstream mouse suite (204 passed).
+The native workflow runs both suites on Linux and macOS.
+
 Current migration base: Neovim 0.13 development,
 `0851e7dabed9fc9c019e22088029f36e9f3ec3e3`.
 
@@ -50,7 +59,7 @@ The follow-up architecture review adds regressions for literal command
 arguments under mappings, native Alt shortcuts, Insert cursor placement and
 empty-line cursor preservation, native-control fallback/undo, Unicode case
 conversion, parser cancellation and special delimiter keys. The dedicated
-suite now contains 87 tests, including native Unicode word classes and
+suite now contains 107 tests, including native Unicode word classes and
 'iskeyword'. A colorscheme-reload control also passes without
 a production change. See [REVIEW.md](REVIEW.md) for the feature inventory and
 the architectural work still required; passing these tests does not establish
