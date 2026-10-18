@@ -2,6 +2,7 @@ local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local clear, feed, insert = n.clear, n.feed, n.insert
 local command = n.command
 local retry = t.retry
@@ -117,7 +118,7 @@ describe('ui mode_change event', function()
       grid = [[
       {17:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}|
       {17:aaaaaaaaaaaaaaaaaaaa}                                        |
-      ^b{17:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}|
+      {17:^bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}|
       {17:bbbbbbbbbbbbbbbbbbbb}                                        |
       {1:~                                                           }|
       {5:-- VISUAL LINE --}                                           |
@@ -285,7 +286,7 @@ describe('ui mode_change event', function()
     feed('v')
     screen:expect {
       grid = [[
-      tex^t                     |
+      tex{17:^t}                     |
       {1:~                        }|*2
       {5:-- VISUAL --}             |
     ]],

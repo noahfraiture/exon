@@ -3,7 +3,7 @@ local fn = vim.fn
 
 local M = {}
 
---- @alias vim.filetype.mapfn fun(path:string,bufnr:integer, ...):string?, fun(b:integer)?
+--- @alias vim.filetype.mapfn fun(path:string,bufnr:integer, ...):string?, fun(b:integer)?, boolean?
 --- @alias vim.filetype.mapopts { priority: number }
 --- @alias vim.filetype.maptbl [string|vim.filetype.mapfn, vim.filetype.mapopts]
 --- @alias vim.filetype.mapping.value string|vim.filetype.mapfn|vim.filetype.maptbl
@@ -109,11 +109,12 @@ end
 --- @return table<string,true>
 function M._get_known_filetypes()
   local known = {} --- @type table<string,true>
-  for _, ft in ipairs(vim.fn.getcompletion('', 'filetype')) do
+  for _, ft in ipairs(fn.getcompletion('', 'filetype')) do
     known[ft] = true
   end
   local registry = vim.filetype.inspect()
 
+  --- @param value vim.filetype.mapping.value
   local function add_filetype(value)
     local filetype = type(value) == 'table' and value[1] or value
     if type(filetype) == 'string' then
@@ -164,7 +165,7 @@ local detect = setmetatable({}, {
   --- @return function
   __index = function(t, k)
     t[k] = function(...)
-      return require('vim.filetype.detect')[k](...)
+      return assert(require('vim.filetype.detect')[k])(...)
     end
     return t[k]
   end,
@@ -189,6 +190,8 @@ local function detect_seq(...)
   end
 end
 
+--- @param path string
+--- @param bufnr integer
 local function detect_noext(path, bufnr)
   local root = fn.fnamemodify(path, ':r')
   if root == path then
@@ -245,6 +248,8 @@ local extension = {
   adb = 'ada',
   tdf = 'ahdl',
   aidl = 'aidl',
+  al = detect.al,
+  a68 = 'algol68',
   aml = 'aml',
   run = 'ampl',
   g4 = 'antlr4',
@@ -274,7 +279,7 @@ local extension = {
   astro = 'astro',
   asy = 'asy',
   atl = 'atlas',
-  as = 'atlas',
+  as = detect.as,
   zed = 'authzed',
   ahk = 'autohotkey',
   au3 = 'autoit',
@@ -288,8 +293,10 @@ local extension = {
   bass = 'bass',
   bi = detect.bas,
   bm = detect.bas,
+  bazelrc = 'bazelrc',
   bc = 'bc',
   bdf = 'bdf',
+  bean = 'beancount',
   beancount = 'beancount',
   bib = 'bib',
   com = detect_seq(detect.bindzone, 'dcl'),
@@ -442,6 +449,8 @@ local extension = {
   rej = 'diff',
   dj = 'djot',
   djot = 'djot',
+  Containerfile = 'dockerfile',
+  containerfile = 'dockerfile',
   Dockerfile = 'dockerfile',
   dockerfile = 'dockerfile',
   bat = 'dosbatch',
@@ -470,6 +479,7 @@ local extension = {
   e = detect.e,
   E = detect.e,
   ecd = 'ecd',
+  ed = 'ed',
   edf = 'edif',
   edif = 'edif',
   edo = 'edif',
@@ -565,6 +575,7 @@ local extension = {
   gel = 'gel',
   gmi = 'gemtext',
   gemini = 'gemtext',
+  ghostty = 'ghostty',
   gift = 'gift',
   prettierignore = 'gitignore',
   gleam = 'gleam',
@@ -633,7 +644,9 @@ local extension = {
   ihe = 'hex',
   ihx = 'hex',
   mcs = 'hex',
+  hip = 'hip',
   hjson = 'hjson',
+  hlsl = 'hlsl',
   m3u = 'hlsplaylist',
   m3u8 = 'hlsplaylist',
   hog = 'hog',
@@ -657,6 +670,7 @@ local extension = {
   hylo = 'hylo',
   iba = 'ibasic',
   ibi = 'ibasic',
+  ics = 'icalendar',
   icn = 'icon',
   idl = detect.idl,
   idr = 'idris2',
@@ -718,6 +732,7 @@ local extension = {
   json5 = 'json5',
   jsonc = 'jsonc',
   jsonl = 'jsonl',
+  jsonld = 'jsonld',
   jsonnet = 'jsonnet',
   libsonnet = 'jsonnet',
   jsp = 'jsp',
@@ -727,6 +742,7 @@ local extension = {
   JUST = 'just',
   kl = 'karel',
   KL = 'karel',
+  pg = 'kawasaki_as',
   kdl = 'kdl',
   kerml = 'kerml',
   kv = 'kivy',
@@ -813,6 +829,7 @@ local extension = {
   mkd = detect.markdown,
   markdown = detect.markdown,
   mdown = detect.markdown,
+  marko = 'marko',
   masm = 'masm',
   mhtml = 'mason',
   mason = 'mason',
@@ -940,6 +957,7 @@ local extension = {
   obj = 'obj',
   objdump = 'objdump',
   cppobjdump = 'objdump',
+  rtn = 'objectscript_routine',
   obl = 'obse',
   obse = 'obse',
   oblivion = 'obse',
@@ -995,7 +1013,6 @@ local extension = {
   plx = 'perl',
   prisma = 'prisma',
   psgi = 'perl',
-  al = 'perl',
   ctp = 'php',
   php = 'php',
   phpt = 'php',
@@ -1176,6 +1193,16 @@ local extension = {
   ss = 'scheme',
   scm = 'scheme',
   sld = 'scheme',
+  stwm = 'scheme',
+  stl = 'scheme',
+  stxt = 'scheme',
+  sprite = 'scheme',
+  strf = 'scheme',
+  satc = 'scheme',
+  stcd = 'scheme',
+  stf = 'scheme',
+  stcp = 'scheme',
+  music = 'scheme',
   stsg = 'scheme',
   sce = 'scilab',
   sci = 'scilab',
@@ -1186,6 +1213,7 @@ local extension = {
   sdl = 'sdl',
   sed = 'sed',
   sexp = 'sexplib',
+  sgf = 'sgf',
   bash = detect.bash,
   bats = detect.bash,
   cygport = detect.bash,
@@ -1263,6 +1291,7 @@ local extension = {
   srt = 'srt',
   ssa = 'ssa',
   ass = 'ssa',
+  allowed_signers = 'sshallowedsigners',
   st = 'st',
   ipd = 'starlark',
   sky = 'starlark',
@@ -1303,6 +1332,7 @@ local extension = {
   itcl = 'tcl',
   tk = 'tcl',
   jacl = 'tcl',
+  xdc = 'tcl',
   tl = 'teal',
   templ = 'templ',
   tmpl = 'template',
@@ -1346,6 +1376,7 @@ local extension = {
   tiltfile = 'tiltfile',
   tla = 'tla',
   tli = 'tli',
+  tolk = 'tolk',
   toml = 'toml',
   tpp = 'tpp',
   treetop = 'treetop',
@@ -1451,6 +1482,7 @@ local extension = {
   xlc = 'xml',
   xba = 'xml',
   slnx = 'xml',
+  reanim = 'xml',
   xpm = detect_line1('XPM2', 'xpm2', 'xpm'),
   xpm2 = 'xpm2',
   xqy = 'xquery',
@@ -1465,10 +1497,12 @@ local extension = {
   yy = 'yacc',
   ['y++'] = 'yacc',
   yxx = 'yacc',
+  cff = 'yaml',
   yml = 'yaml',
   yaml = 'yaml',
   eyaml = 'yaml',
   mplstyle = 'yaml',
+  ksy = 'yaml',
   kyaml = 'yaml',
   kyml = 'yaml',
   grc = detect_line1('<%?xml', 'xml', 'yaml'),
@@ -1707,6 +1741,7 @@ local filename = {
   ['.vscodeignore'] = 'gitignore',
   ['gitolite.conf'] = 'gitolite',
   ['git-rebase-todo'] = 'gitrebase',
+  ['.git-blame-ignore-revs'] = 'gitrevlist',
   gkrellmrc = 'gkrellmrc',
   ['.gnashrc'] = 'gnash',
   ['.gnashpluginrc'] = 'gnash',
@@ -1774,6 +1809,7 @@ local filename = {
   ['.swrc'] = 'jsonc',
   ['.vsconfig'] = 'jsonc',
   ['bun.lock'] = 'jsonc',
+  ['osquery.conf'] = 'jsonc',
   ['.justfile'] = 'just',
   ['.Justfile'] = 'just',
   ['.JUSTFILE'] = 'just',
@@ -1833,6 +1869,7 @@ local filename = {
   ['mplayer.conf'] = 'mplayerconf',
   mrxvtrc = 'mrxvtrc',
   ['.mrxvtrc'] = 'mrxvtrc',
+  msmtprc = 'msmtp',
   ['.msmtprc'] = 'msmtp',
   ['Muttngrc'] = 'muttrc',
   ['Muttrc'] = 'muttrc',
@@ -1873,6 +1910,7 @@ local filename = {
   pinercex = 'pine',
   ['/etc/pinforc'] = 'pinfo',
   ['/.pinforc'] = 'pinfo',
+  PklProject = 'pkl',
   ['.povrayrc'] = 'povini',
   printcap = function(_path, _bufnr)
     return 'ptcap', function(b)
@@ -1901,6 +1939,7 @@ local filename = {
   ['.Rprofile'] = 'r',
   Rprofile = 'r',
   ['Rprofile.site'] = 'r',
+  ['radvd.conf'] = 'radvd',
   ratpoisonrc = 'ratpoison',
   ['.ratpoisonrc'] = 'ratpoison',
   inputrc = 'readline',
@@ -1961,8 +2000,9 @@ local filename = {
   Snakefile = 'snakemake',
   ['.sqlite_history'] = 'sql',
   ['squid.conf'] = 'squid',
-  ['ssh_config'] = 'sshconfig',
-  ['sshd_config'] = 'sshdconfig',
+  allowed_signers = 'sshallowedsigners',
+  ssh_config = 'sshconfig',
+  sshd_config = 'sshdconfig',
   ['/etc/sudoers'] = 'sudoers',
   ['sudoers.tmp'] = 'sudoers',
   ['/etc/sysctl.conf'] = 'sysctl',
@@ -2034,6 +2074,7 @@ local filename = {
   ['.clangd'] = 'yaml',
   ['.clang-format'] = 'yaml',
   ['.clang-tidy'] = 'yaml',
+  ['buf.lock'] = 'yaml',
   ['pixi.lock'] = 'yaml',
   ['yarn.lock'] = 'yaml',
   matplotlibrc = 'yaml',
@@ -2154,12 +2195,17 @@ local pattern = {
     ['/etc/serial%.conf$'] = 'setserial',
     ['/etc/udev/cdsymlinks%.conf$'] = 'sh',
     ['/etc/profile$'] = detect.sh,
+    ['^/etc/X11/xinit/xinitrc$'] = 'sh',
+    ['^/etc/X11/xinit/xinitrc%.d/'] = 'sh',
+    ['^/etc/X11/xinit/xserverrc$'] = 'sh',
     ['/etc/slp%.conf$'] = 'slpconf',
     ['/etc/slp%.reg$'] = 'slpreg',
     ['/etc/slp%.spi$'] = 'slpspi',
-    ['/etc/sudoers%.d/'] = starsetf('sudoers'),
     ['/etc/ssh/ssh_config%.d/.*%.conf$'] = 'sshconfig',
     ['/etc/ssh/sshd_config%.d/.*%.conf$'] = 'sshdconfig',
+    ['^/etc/ssh/ssh_known_hosts$'] = 'sshknownhosts',
+    ['^/etc/ssh/.+%.pub$'] = 'sshpublickey',
+    ['/etc/sudoers%.d/'] = starsetf('sudoers'),
     ['/etc/sudoers$'] = 'sudoers',
     ['/etc/sysctl%.conf$'] = 'sysctl',
     ['/etc/sysctl%.d/.*%.conf$'] = 'sysctl',
@@ -2484,6 +2530,8 @@ local pattern = {
     ['/mypy/config$'] = 'dosini',
     ['^${HOME}/%.config/notmuch/.*/config$'] = 'dosini',
     ['^${XDG_CONFIG_HOME}/notmuch/.*/config$'] = 'dosini',
+    ['/ghostty/config$'] = 'ghostty',
+    ['/com%.mitchellh%.ghostty/config$'] = 'ghostty',
     ['^${XDG_CONFIG_HOME}/git/config$'] = 'gitconfig',
     ['%.git/config%.worktree$'] = 'gitconfig',
     ['%.git/config$'] = 'gitconfig',
@@ -2505,6 +2553,7 @@ local pattern = {
     ['/%.cargo/config$'] = 'toml',
     ['/%.bundle/config$'] = 'yaml',
     ['/%.kube/config$'] = 'yaml',
+    ['/argocd/config$'] = 'yaml',
   },
   ['/%.'] = {
     ['/%.aws/credentials$'] = 'confini',
@@ -2515,6 +2564,11 @@ local pattern = {
     ['/%.icewm/menu$'] = 'icemenu',
     ['/%.libao$'] = 'libao',
     ['/%.pinforc$'] = 'pinfo',
+    ['^${HOME}/%.xinitrc$'] = 'sh',
+    ['^${HOME}/%.xserverrc$'] = 'sh',
+    ['/%.ssh/authorized_keys$'] = 'sshauthorizedkeys',
+    ['/%.ssh/known_hosts$'] = 'sshknownhosts',
+    ['/%.ssh/.+%.pub$'] = 'sshpublickey',
     ['/%.cargo/credentials$'] = 'toml',
     ['/%.init/.*%.override$'] = 'upstart',
     ['/%.kube/kuberc$'] = 'yaml',
@@ -2567,6 +2621,8 @@ local pattern = {
     ['^dictd.*%.conf$'] = 'dictdconf',
     ['/%.?gnuradio/.*%.conf$'] = 'confini',
     ['/gnuradio/conf%.d/.*%.conf$'] = 'confini',
+    ['/portage/binrepos%.conf/.*%.conf$'] = 'confini',
+    ['/portage/repos%.conf/.*%.conf$'] = 'confini',
     ['/lxqt/.*%.conf$'] = 'dosini',
     ['/screengrab/.*%.conf$'] = 'dosini',
     ['/%.config/fd/ignore$'] = 'gitignore',
@@ -2578,6 +2634,8 @@ local pattern = {
     ['^named.*%.conf$'] = 'named',
     ['^rndc.*%.conf$'] = 'named',
     ['/openvpn/.*/.*%.conf$'] = 'openvpn',
+    ['/portage/make%.conf/.*%.conf$'] = 'sh',
+    ['/portage/make%.conf$'] = 'sh',
     ['/pipewire/.*%.conf$'] = 'spajson',
     ['/wireplumber/.*%.conf$'] = 'spajson',
     ['/%.ssh/.*%.conf$'] = 'sshconfig',
@@ -2594,6 +2652,36 @@ local pattern = {
     ['/%.config/upstart/.*%.override$'] = 'upstart',
     ['/%.init/.*%.conf$'] = 'upstart',
     ['/xorg%.conf%.d/.*%.conf$'] = detect.xfree86_v4,
+  },
+  ['%.txt'] = {
+    ['/doc/.*%.txt$'] = function(_, bufnr)
+      local line = M._getline(bufnr, -1)
+      if
+        M._findany(line, {
+          '^vim:ft=help[:%s]',
+          '^vim:ft=help$',
+          '^vim:filetype=help[:%s]',
+          '^vim:filetype=help$',
+          '^vim:.*[:%s]ft=help[:%s]',
+          '^vim:.*[:%s]ft=help$',
+          '^vim:.*[:%s]filetype=help[:%s]',
+          '^vim:.*[:%s]filetype=help$',
+          '%svim:ft=help[:%s]',
+          '%svim:ft=help$',
+          '%svim:filetype=help[:%s]',
+          '%svim:filetype=help$',
+          '%svim:.*[:%s]ft=help[:%s]',
+          '%svim:.*[:%s]ft=help$',
+          '%svim:.*[:%s]filetype=help[:%s]',
+          '%svim:.*[:%s]filetype=help$',
+        })
+      then
+        return 'help'
+      end
+    end,
+    ['^hg%-editor%-.*%.txt$'] = 'hgcommit',
+    ['^ae%d+%.txt$'] = 'mail',
+    ['/evcxr/history%.txt$'] = 'rust',
   },
   ['sst%.meta'] = {
     ['%.%-sst%.meta$'] = 'sisu',
@@ -2711,6 +2799,7 @@ local pattern = {
   },
   [''] = {
     ['^bash%-fc[%-%.]'] = detect.bash,
+    ['/tools/bazel%.rc$'] = 'bazelrc',
     ['/bind/db%.'] = starsetf('bindzone'),
     ['/named/db%.'] = starsetf('bindzone'),
     ['%.blade%.php$'] = 'blade',
@@ -2722,6 +2811,7 @@ local pattern = {
     ['%.%.ch$'] = 'chill',
     ['%.cmake%.in$'] = 'cmake',
     ['^crontab%.'] = starsetf('crontab'),
+    ['^crontabs%.'] = starsetf('crontab'),
     ['^cvs%d+$'] = 'cvs',
     ['/DEBIAN/control$'] = 'debcontrol',
     ['^php%.ini%-'] = starsetf('dosini'),
@@ -2740,37 +2830,12 @@ local pattern = {
     ['^[a-zA-Z].*Properties%.'] = starsetf(detect.foam),
     ['^[a-zA-Z].*Properties$'] = detect.foam,
     ['/tmp/lltmp'] = starsetf('gedcom'),
+    ['/ghostty/themes/'] = starsetf('ghostty'),
     ['^gkrellmrc_.$'] = 'gkrellmrc',
     ['^${GNUPGHOME}/options$'] = 'gpg',
     ['/boot/grub/menu%.lst$'] = 'grub',
     -- gtkrc* and .gtkrc*
     ['^%.?gtkrc'] = starsetf('gtkrc'),
-    ['/doc/.*%.txt$'] = function(_, bufnr)
-      local line = M._getline(bufnr, -1)
-      if
-        M._findany(line, {
-          '^vim:ft=help[:%s]',
-          '^vim:ft=help$',
-          '^vim:filetype=help[:%s]',
-          '^vim:filetype=help$',
-          '^vim:.*[:%s]ft=help[:%s]',
-          '^vim:.*[:%s]ft=help$',
-          '^vim:.*[:%s]filetype=help[:%s]',
-          '^vim:.*[:%s]filetype=help$',
-          '%svim:ft=help[:%s]',
-          '%svim:ft=help$',
-          '%svim:filetype=help[:%s]',
-          '%svim:filetype=help$',
-          '%svim:.*[:%s]ft=help[:%s]',
-          '%svim:.*[:%s]ft=help$',
-          '%svim:.*[:%s]filetype=help[:%s]',
-          '%svim:.*[:%s]filetype=help$',
-        })
-      then
-        return 'help'
-      end
-    end,
-    ['^hg%-editor%-.*%.txt$'] = 'hgcommit',
     ['^JAM.*%.'] = starsetf('jam'),
     ['^Prl.*%.'] = starsetf('jam'),
     ['^${HOME}/.*/Code/User/.*%.json$'] = 'jsonc',
@@ -2786,7 +2851,6 @@ local pattern = {
     ['lftp/rc$'] = 'lftp',
     ['/LiteStep/.*/.*%.rc$'] = 'litestep',
     ['^/tmp/SLRN[0-9A-Z.]+$'] = 'mail',
-    ['^ae%d+%.txt$'] = 'mail',
     ['^pico%.%d+$'] = 'mail',
     ['^reportbug%-'] = starsetf('mail'),
     ['^snd%.%d+$'] = 'mail',
@@ -2806,6 +2870,7 @@ local pattern = {
     end),
     ['/queries/.*%.scm$'] = 'query', -- treesitter queries (Neovim only)
     [',v$'] = 'rcs',
+    ['/supertux2/.*/info$'] = 'scheme',
     ['^svn%-commit.*%.tmp$'] = 'svn',
     ['%.swift%.gyb$'] = 'swiftgyb',
     ['^vivado.*%.jou$'] = 'tcl',
@@ -2823,7 +2888,7 @@ local pattern = {
     ['/app%-defaults/'] = starsetf('xdefaults'),
     ['^Xresources'] = starsetf('xdefaults'),
     -- Increase priority to run before the pattern below
-    ['^XF86Config%-4'] = starsetf(detect.xfree86_v4, -math.huge + 1),
+    ['^XF86Config%-4'] = starsetf(detect.xfree86_v4, (-math.huge + 1) --[[@as integer]]),
     ['^XF86Config'] = starsetf(detect.xfree86_v3),
     ['Xmodmap$'] = 'xmodmap',
     ['xmodmap'] = starsetf('xmodmap'),
@@ -2905,7 +2970,7 @@ local function normalize_path(path, as_pattern)
     if as_pattern then
       -- Escape Lua's metacharacters when $HOME is used in a pattern.
       -- The rest of path should already be properly escaped.
-      normal = vim.pesc(vim.env.HOME) .. normal:sub(2)
+      normal = vim.pesc(assert(vim.env.HOME)) .. normal:sub(2)
     else
       normal = vim.env.HOME .. normal:sub(2) --- @type string
     end
@@ -2927,6 +2992,7 @@ end
 --- the filename is matched against the list of |lua-pattern|s (sorted by priority)
 --- until a match is found. Lastly, if pattern matching does not find a
 --- filetype, then the file extension is used.
+--- Extension mappings match only the text after the final dot in the filename.
 ---
 --- The filetype can be either a string (in which case it is used as the
 --- filetype directly) or a function. If a function, it takes the full path and
@@ -3202,7 +3268,7 @@ end
 ---                     (i.e., ".conf"), which indicates the filetype should be set with
 ---                     `:setf FALLBACK conf`. See |:setfiletype|.
 function M.match(args)
-  vim.validate('arg', args, 'table')
+  vim.validate('args', args, 'table')
 
   if not (args.buf or args.filename or args.contents) then
     error('At least one of "buf", "filename", or "contents" must be given')
@@ -3217,18 +3283,22 @@ function M.match(args)
   end
 
   if name then
+    if name:sub(-1) == '/' and not name:find('^%a[%w+.-]*://') then
+      return 'directory'
+    end
     name = normalize_path(name)
 
-    local path = vim.fs.abspath(name)
-    do -- First check for the simple case where the full path exists as a key
+    local ok_abspath, path = pcall(vim.fs.abspath, name)
+    if ok_abspath then -- First check for the simple case where the full path exists as a key
       local ft, on_detect = dispatch(filename[path], path, bufnr)
       if ft then
         return ft, on_detect
       end
+    else
+      path = name
     end
 
     local tail = vim.fs.basename(name)
-
     do -- Next check against just the file name
       local ft, on_detect = dispatch(filename[tail], path, bufnr)
       if ft then
@@ -3288,6 +3358,7 @@ function M.match(args)
       local ok, ft, on_detect = pcall(
         require('vim.filetype.detect').match_contents,
         contents,
+        --- @diagnostic disable-next-line: param-type-mismatch
         name,
         function(ext)
           return dispatch(extension[ext], name, bufnr)
@@ -3337,7 +3408,11 @@ end
 --- whether a certain extension, filename, or pattern has been registered so far. In addition, the
 --- `pattern` table is in an internal format optimized for fast lookup. Prefer |vim.filetype.match()|
 --- for checking the detected filetype for a given pattern.
----@return table<string, table<string, vim.filetype.mapping|table<string, vim.filetype.mapping>>>
+--- @return {
+---   extension: vim.filetype.mapping,
+---   filename: vim.filetype.mapping,
+---   pattern: table<string, vim.filetype.mapping>
+--- }
 function M.inspect()
   return {
     extension = vim.deepcopy(extension),

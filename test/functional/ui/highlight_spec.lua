@@ -3,6 +3,7 @@ local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 local os = require('os')
 
+local describe, it, before_each, after_each = t.describe, t.it, t.before_each, t.after_each
 local clear, feed, insert = n.clear, n.feed, n.insert
 local command, exec = n.command, n.exec
 local eval = n.eval
@@ -241,7 +242,10 @@ describe('highlight defaults', function()
 
   it('Cursor after `:hi clear|syntax reset` #6508', function()
     command('highlight clear|syntax reset')
-    eq('guifg=bg guibg=fg', eval([[matchstr(execute('hi Cursor'), '\v(gui|cterm).*$')]]))
+    eq(
+      'cterm=reverse guifg=bg guibg=fg',
+      eval([[matchstr(execute('hi Cursor'), '\v(gui|cterm).*$')]])
+    )
   end)
 
   it('Whitespace highlight', function()
@@ -309,11 +313,11 @@ describe('highlight', function()
     feed('gg')
     command('vsplit')
 
-    -- Non-blinking block cursor: does NOT highlight char-at-cursor.
+    -- Visual highlighting does not depend on 'guicursor'.
     command('set guicursor=a:block-blinkon0')
     feed('V')
     screen:expect([[
-      {17:  }^l{17:ine1 foo bar}       │{17:  line1 foo bar}       |
+      {17:  ^line1 foo bar}       │{17:  line1 foo bar}       |
       abcdefghijklmnopqrs   │abcdefghijklmnopqrs   |
       ABCDEFGHIJKLMNOPQRS   │ABCDEFGHIJKLMNOPQRS   |
       {3:[No Name] [+]          }{2:[No Name] [+]         }|
@@ -322,14 +326,14 @@ describe('highlight', function()
 
     feed('<Esc>$vhhh')
     screen:expect([[
-        line1 foo^ {17:bar}       │  line1 foo{17: bar}       |
+        line1 foo{17:^ bar}       │  line1 foo{17: bar}       |
       abcdefghijklmnopqrs   │abcdefghijklmnopqrs   |
       ABCDEFGHIJKLMNOPQRS   │ABCDEFGHIJKLMNOPQRS   |
       {3:[No Name] [+]          }{2:[No Name] [+]         }|
       {5:-- VISUAL --}                                 |
     ]])
 
-    -- Vertical cursor: highlights char-at-cursor. #8983
+    -- Non-blinking block cursor with blinkon0 does not affect Visual highlighting either. #8983
     command('set guicursor=a:block-blinkon175')
     screen:expect([[
         line1 foo{17:^ bar}       │  line1 foo{17: bar}       |
@@ -429,14 +433,14 @@ describe('highlight', function()
     insert('foobar\nfoo')
     feed('0<C-V>k$')
     screen:expect([[
-      {17:foobar}^                                       |
+      {17:foobar^ }                                      |
       {17:foo    }                                      |
       {1:~                                            }|*2
       {5:-- VISUAL BLOCK --}                           |
     ]])
     feed('10l')
     screen:expect([[
-      {17:foobar          }^                             |
+      {17:foobar          ^ }                            |
       {17:foo              }                            |
       {1:~                                            }|*2
       {5:-- VISUAL BLOCK --}                           |
@@ -454,7 +458,7 @@ describe('highlight', function()
     screen:expect([[
       line 48                                 |
       line 49                                 |
-      ^l{17:ine 50}                                 |
+      {17:^line 50}                                 |
       line 51                                 |
       line 52                                 |
       line 53                                 |
@@ -471,7 +475,7 @@ describe('highlight', function()
       {17:line 51}                                 |
       {17:line 52}                                 |
       {17:line 53}                                 |
-      ^l{17:ine 54}                                 |
+      {17:^line 54}                                 |
       line 55                                 |
       line 56                                 |
       {5:-- VISUAL LINE --}                       |
@@ -484,7 +488,7 @@ describe('highlight', function()
       line 51                                 |
       line 52                                 |
       line 53                                 |
-      ^l{17:ine 54}                                 |
+      {17:^line 54}                                 |
       line 55                                 |
       line 56                                 |
       {5:-- VISUAL LINE --}                       |
@@ -493,7 +497,7 @@ describe('highlight', function()
     screen:expect([[
       line 48                                 |
       line 49                                 |
-      ^l{17:ine 50}                                 |
+      {17:^line 50}                                 |
       {17:line 51}                                 |
       {17:line 52}                                 |
       {17:line 53}                                 |
@@ -883,7 +887,7 @@ describe("'listchars' highlight", function()
     feed('lllvj')
     screen:expect([[
       {19:>-------.}a{17:bcd}{103:*}{100:¬}     |
-      {103:>-------.}{17:a}^bcd{19:.}Lorem{1:>}|
+      {103:>-------.}{17:a^b}cd{19:.}Lorem{1:>}|
       {1:¬}                   |
       {1:~                   }|
       -- VISUAL --        |
@@ -891,7 +895,7 @@ describe("'listchars' highlight", function()
     feed('<esc>V')
     screen:expect([[
       {19:>-------.}abcd{19:*}{1:¬}     |
-      {103:>-------.}{17:a}^b{17:cd}{103:.}{17:Lorem}{1:>}|
+      {103:>-------.}{17:a^bcd}{103:.}{17:Lorem}{1:>}|
       {1:¬}                   |
       {1:~                   }|
       -- VISUAL LINE --   |
@@ -1018,6 +1022,33 @@ describe('CursorLine and CursorLineNr highlights', function()
     ]])
   end)
 
+  it("'cursorlineopt' global assignments keep the local highlight", function()
+    local screen = Screen.new(20, 5)
+    screen:add_extra_attr_ids {
+      [100] = { background = Screen.colors.Red },
+    }
+    command('highlight CursorLine guibg=Red gui=NONE')
+    command('setlocal cursorline cursorlineopt=both')
+    api.nvim_buf_set_lines(0, 0, -1, true, { 'example' })
+    screen:expect([[
+      {100:^example             }|
+      {1:~                   }|*3
+                          |
+    ]])
+    command('setglobal cursorlineopt=number')
+    eq('both', eval('&l:cursorlineopt'))
+    eq('number', eval('&g:cursorlineopt'))
+    command('redraw!')
+    screen:expect {
+      grid = [[
+        {100:^example             }|
+        {1:~                   }|*3
+                            |
+      ]],
+      unchanged = true,
+    }
+  end)
+
   it("'cursorlineopt' screenline", function()
     local screen = Screen.new(20, 5)
     screen:add_extra_attr_ids {
@@ -1063,7 +1094,8 @@ describe('CursorLine and CursorLineNr highlights', function()
                           |
     ]])
 
-    -- CursorLineNr should not apply to line number when 'cursorlineopt' does not contain "number"
+    -- A dry run adding "number" must not enable CursorLineNr.
+    api.nvim_set_option_value('cursorlineopt', 'number', { operation = 'append', dry_run = true })
     command('set relativenumber numberwidth=2')
     screen:expect([[
       {101:0 }{102:øøøøøøøøøøøø^øøøøøø}|
@@ -1244,7 +1276,7 @@ describe('CursorLine and CursorLineNr highlights', function()
     feed('V<C-f>zbkkjk')
     screen:expect([[
       {17:abc}                                               |
-      ^a{17:bc}                                               |
+      {17:^abc}                                               |
       abc                                               |*2
       {5:-- VISUAL LINE --}                                 |
     ]])
@@ -1450,6 +1482,24 @@ describe('CursorColumn highlight', function()
       {1:~                                                 }|*5
       {5:-- INSERT --}                                      |
     ]])
+  end)
+
+  -- oldtest: Test_cursorcolumn_virtualedit()
+  it('is correct with operator on empty line and virtualedit', function()
+    exec([[
+      set virtualedit=all
+      set cursorcolumn
+      call setline(1, ['', '', ''])
+      call cursor(3, 1)
+    ]])
+    screen:expect([[
+      {21: }                                                 |*2
+      ^                                                  |
+      {1:~                                                 }|*4
+                                                        |
+    ]])
+    feed('<Del>')
+    screen:expect_unchanged()
   end)
 
   -- oldtest: Test_cursorcolumn_callback()
@@ -2252,20 +2302,24 @@ describe("'winhighlight' highlight", function()
   end)
 
   it('can override Tabline', function()
+    screen:add_extra_attr_ids {
+      [100] = { reverse = true, background = Screen.colors.Red, foreground = Screen.colors.Grey100 },
+      [101] = { reverse = true, background = Screen.colors.DarkBlue },
+    }
     command('tabnew')
     command('set winhl=TabLine:Background1,TabLineSel:ErrorMsg')
 
     screen:expect([[
-      {20: No Name] }{15: No Name]}{20:X}|
+      {24: No Name] }{100: No Name]}{24:X}|
       ^                    |
-      {0:~                   }|*5
+      {1:~                   }|*5
                           |
     ]])
     command('tabnext')
     screen:expect([[
-      {21: No Name] }{1: No Name]}{20:X}|
+      {5: No Name] }{101: No Name]}{24:X}|
       ^                    |
-      {0:~                   }|*5
+      {1:~                   }|*5
                           |
     ]])
   end)

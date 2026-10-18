@@ -32,11 +32,11 @@
 #include "nvim/ex_eval.h"
 #include "nvim/ex_eval_defs.h"
 #include "nvim/garray.h"
-#include "nvim/getchar.h"
 #include "nvim/gettext_defs.h"
 #include "nvim/globals.h"
 #include "nvim/hashtab.h"
 #include "nvim/hashtab_defs.h"
+#include "nvim/input.h"
 #include "nvim/lua/executor.h"
 #include "nvim/macros_defs.h"
 #include "nvim/map_defs.h"
@@ -710,6 +710,7 @@ static ArrayOf(String) runtime_get_named_common(bool lua, Array pat, bool all,
                                        item->path, pat_item.data.string.data);
         if (size < buf_len) {
           if (os_file_is_readable(buf)) {
+            TO_SLASH(buf);
             ADD_C(rv, CSTR_TO_ARENA_OBJ(arena, buf));
             if (!all) {
               goto done;
@@ -822,7 +823,7 @@ static bool path_is_after(char *buf, size_t buflen)
 {
   // NOTE: we only consider dirs exactly matching "after" to be an AFTER dir.
   // vim8 considers all dirs like "foo/bar_after", "Xafter" etc, as an
-  // "after" dir in SOME codepaths not not in ALL codepaths.
+  // "after" dir in SOME codepaths not in ALL codepaths.
   return buflen >= 5
          && (!(buflen >= 6) || vim_ispathsep(buf[buflen - 6]))
          && strcmp(buf + buflen - 5, "after") == 0;
@@ -1030,7 +1031,7 @@ static int gen_expand_wildcards_and_cb(int num_pat, char **pats, int flags, bool
 /// @param is_pack whether the added dir is a "pack/*/start/*/" style package
 static int add_pack_dir_to_rtp(char *fname, bool is_pack)
 {
-  char *afterdir = NULL;
+  String afterdir = STRING_INIT;
   int retval = FAIL;
 
   char *p1 = get_past_head(fname);
@@ -1064,17 +1065,24 @@ static int add_pack_dir_to_rtp(char *fname, bool is_pack)
   // Find "ffname" in "p_rtp", ignoring '/' vs '\' differences
   // Also stop at the first "after" directory
   size_t fname_len = strlen(ffname);
-  char buf[MAXPATHL];
+  char buf_data[MAXPATHL];
+  String buf;
+  buf.data = buf_data;
+
   const char *insp = NULL;
   const char *after_insp = NULL;
+  size_t p_rtp_len = 0;
   const char *entry = p_rtp;
   while (*entry != NUL) {
     const char *cur_entry = entry;
-    copy_option_part((char **)&entry, buf, MAXPATHL, ",");
+    buf.size = copy_option_part((char **)&entry, buf.data, MAXPATHL, ",");
 
-    char *p = strstr(buf, "after");
+    // keep track of p_rtp length as we go to make the strlen() below have less work to do
+    p_rtp_len += (*(cur_entry + buf.size) == ',') ? buf.size + 1 : buf.size;
+
+    char *p = strstr(buf.data, "after");
     bool is_after = p != NULL
-                    && p > buf
+                    && p > buf.data
                     && vim_ispathsep(p[-1])
                     && (vim_ispathsep(p[5]) || p[5] == NUL || p[5] == ',');
 
@@ -1089,12 +1097,12 @@ static int add_pack_dir_to_rtp(char *fname, bool is_pack)
     }
 
     if (insp == NULL) {
-      add_pathsep(buf);
-      char *const rtp_ffname = fix_fname(buf);
+      add_pathsep(buf.data);
+      char *const rtp_ffname = fix_fname(buf.data);
       if (rtp_ffname == NULL) {
         goto theend;
       }
-      if (path_fnamencmp(rtp_ffname, ffname, fname_len) == 0) {
+      if (path_cmp(p_fic, rtp_ffname, ffname, fname_len) == 0) {
         // Insert "ffname" after this entry (and comma).
         insp = entry;
       }
@@ -1102,24 +1110,25 @@ static int add_pack_dir_to_rtp(char *fname, bool is_pack)
     }
   }
 
+  // finish measuring the length of p_rtp
+  p_rtp_len += strlen(p_rtp + p_rtp_len);
   if (insp == NULL) {
     // Both "fname" and "after" not found, append at the end.
-    insp = p_rtp + strlen(p_rtp);
+    insp = p_rtp + p_rtp_len;
   }
 
   // check if rtp/pack/name/start/name/after exists
-  afterdir = concat_fnames(fname, "after", true);
-  size_t afterlen = 0;
-  if (is_pack ? pack_has_entries(afterdir) : os_isdir(afterdir)) {
-    afterlen = strlen(afterdir) + 1;  // add one for comma
+  fname_len = strlen(fname);
+  afterdir = concat_fnames(cbuf_as_string(fname, fname_len), STATIC_CSTR_AS_STRING("after"), true);
+  if (is_pack ? !pack_has_entries(afterdir.data) : !os_isdir(afterdir.data)) {
+    afterdir.size = 0;
   }
 
-  const size_t oldlen = strlen(p_rtp);
-  const size_t addlen = strlen(fname) + 1;  // add one for comma
-  const size_t new_rtp_capacity = oldlen + addlen + afterlen + 1;
-  // add one for NUL ------------------------------------------^
-  char *const new_rtp = try_malloc(new_rtp_capacity);
-  if (new_rtp == NULL) {
+  const size_t new_rtp_capacity = p_rtp_len + fname_len + afterdir.size + 3;
+  // add two for commas and one more for NUL -----------------------------^
+  String new_rtp;
+  new_rtp.data = try_malloc(new_rtp_capacity);
+  if (new_rtp.data == NULL) {
     goto theend;
   }
 
@@ -1127,49 +1136,54 @@ static int add_pack_dir_to_rtp(char *fname, bool is_pack)
   // Create new_rtp, first: {keep},{fname}
   size_t keep = (size_t)(insp - p_rtp);
   size_t first_pos = keep;
-  memmove(new_rtp, p_rtp, keep);
-  size_t new_rtp_len = keep;
+  memmove(new_rtp.data, p_rtp, keep);
+  new_rtp.size = keep;
   if (*insp == NUL) {
-    new_rtp[new_rtp_len++] = ',';  // add comma before
+    new_rtp.data[new_rtp.size++] = ',';  // add comma before
     first_pos++;
   }
-  memmove(new_rtp + new_rtp_len, fname, addlen - 1);
-  new_rtp_len += addlen - 1;
+  memmove(new_rtp.data + new_rtp.size, fname, fname_len);
+  new_rtp.size += fname_len;
   if (*insp != NUL) {
-    new_rtp[new_rtp_len++] = ',';  // add comma after
+    new_rtp.data[new_rtp.size++] = ',';  // add comma after
   }
 
   size_t after_pos = 0;
 
-  if (afterlen > 0 && after_insp != NULL) {
+  if (afterdir.size > 0 && after_insp != NULL) {
     size_t keep_after = (size_t)(after_insp - p_rtp);
+    size_t append_len = keep_after - keep;
 
     // Add to new_rtp: {keep},{fname}{keep_after},{afterdir}
-    memmove(new_rtp + new_rtp_len, p_rtp + keep, keep_after - keep);
-    new_rtp_len += keep_after - keep;
-    memmove(new_rtp + new_rtp_len, afterdir, afterlen - 1);
-    new_rtp_len += afterlen - 1;
-    new_rtp[new_rtp_len++] = ',';
+    memmove(new_rtp.data + new_rtp.size, p_rtp + keep, append_len);
+    new_rtp.size += append_len;
+    memmove(new_rtp.data + new_rtp.size, afterdir.data, afterdir.size);
+    new_rtp.size += afterdir.size;
+    new_rtp.data[new_rtp.size++] = ',';
     keep = keep_after;
     after_pos = keep_after;
   }
 
   if (p_rtp[keep] != NUL) {
+    size_t append_len = p_rtp_len - keep;
     // Append rest: {keep},{fname}{keep_after},{afterdir}{rest}
-    memmove(new_rtp + new_rtp_len, p_rtp + keep, oldlen - keep + 1);
+    memmove(new_rtp.data + new_rtp.size, p_rtp + keep, append_len + 1);  // add one for NUL
+    new_rtp.size += append_len;
   } else {
-    new_rtp[new_rtp_len] = NUL;
+    new_rtp.data[new_rtp.size] = NUL;
   }
 
-  if (afterlen > 0 && after_insp == NULL) {
+  if (afterdir.size > 0 && after_insp == NULL) {
     // Append afterdir when "after" was not found:
     // {keep},{fname}{rest},{afterdir}
-    after_pos = xstrlcat(new_rtp, ",", new_rtp_capacity);
-    xstrlcat(new_rtp, afterdir, new_rtp_capacity);
+    new_rtp.data[new_rtp.size++] = ',';
+    after_pos = new_rtp.size;
+    memmove(new_rtp.data + new_rtp.size, afterdir.data, afterdir.size + 1);  // add one for NUL
+    new_rtp.size += afterdir.size;
   }
 
   bool was_valid = runtime_search_path_valid;
-  set_option_value_give_err(kOptRuntimepath, CSTR_AS_OPTVAL(new_rtp), 0);
+  set_option_value_give_err(kOptRuntimepath, STRING_OBJ(new_rtp), 0);
 
   assert(!runtime_search_path_valid);
   // If this is the result of "packadd opt_pack", rebuilding runtime_search_pat
@@ -1182,16 +1196,17 @@ static int add_pack_dir_to_rtp(char *fname, bool is_pack)
     kv_pushp(runtime_search_path);
     ssize_t i = (ssize_t)(kv_size(runtime_search_path)) - 1;
 
-    if (afterlen > 0) {
+    if (afterdir.size > 0) {
       kv_pushp(runtime_search_path);
       i += 1;
       for (; i >= 1; i--) {
         if (i > 1 && kv_A(runtime_search_path, i - 2).pos_in_rtp >= after_pos) {
           kv_A(runtime_search_path, i) = kv_A(runtime_search_path, i - 2);
-          kv_A(runtime_search_path, i).pos_in_rtp += addlen + afterlen;
+          kv_A(runtime_search_path, i).pos_in_rtp += fname_len + afterdir.size + 2;
         } else {
-          kv_A(runtime_search_path, i) = (SearchPathItem){ xstrdup(afterdir), true, true, kNone,
-                                                           after_pos + addlen };
+          kv_A(runtime_search_path, i) = (SearchPathItem){
+            xmemdupz(afterdir.data, afterdir.size), true, true, kNone, after_pos + fname_len + 1,
+          };
           i--;
           break;
         }
@@ -1201,20 +1216,21 @@ static int add_pack_dir_to_rtp(char *fname, bool is_pack)
     for (; i >= 0; i--) {
       if (i > 0 && kv_A(runtime_search_path, i - 1).pos_in_rtp >= first_pos) {
         kv_A(runtime_search_path, i) = kv_A(runtime_search_path, i - 1);
-        kv_A(runtime_search_path, i).pos_in_rtp += addlen;
+        kv_A(runtime_search_path, i).pos_in_rtp += fname_len + 1;
       } else {
-        kv_A(runtime_search_path, i) = (SearchPathItem){ xstrdup(fname), false, true, kNone,
-                                                         first_pos };
+        kv_A(runtime_search_path, i) = (SearchPathItem){
+          xmemdupz(fname, fname_len), false, true, kNone, first_pos
+        };
         break;
       }
     }
   }
-  xfree(new_rtp);
+  xfree(new_rtp.data);
   retval = OK;
 
 theend:
   xfree(ffname);
-  xfree(afterdir);
+  xfree(afterdir.data);
   return retval;
 }
 
@@ -1267,7 +1283,7 @@ static void add_pack_plugins(bool opt, int num_fnames, char **fnames, bool all, 
       const char *p = p_rtp;
       while (*p != NUL) {
         copy_option_part((char **)&p, buf, MAXPATHL, ",");
-        if (path_fnamecmp(buf, fnames[i]) == 0) {
+        if (path_equal(buf, fnames[i], kPathCmpLiteral)) {
           found = true;
           break;
         }
@@ -1772,7 +1788,7 @@ static inline char *add_dir(char *dest, const char *const dir, const size_t dir_
     size_t appname_len = strlen(appname);
     assert(appname_len < (IOSIZE - sizeof("-data")));
     xmemcpyz(IObuff, appname, appname_len);
-#if defined(MSWIN)
+#ifdef MSWIN
     if (type == kXDGDataHome || type == kXDGStateHome) {
       xstrlcat(IObuff, "-data", IOSIZE);
       appname_len += 5;
@@ -1829,10 +1845,10 @@ char *runtimepath_default(bool clean_arg)
   char *const config_home = clean_arg
                             ? NULL
                             : stdpaths_get_xdg_var(kXDGConfigHome);
-  char *const vimruntime = vim_getenv("VIMRUNTIME");
   char *const libdir = get_lib_dir();
   char *const data_dirs = stdpaths_get_xdg_var(kXDGDataDirs);
   char *const config_dirs = stdpaths_get_xdg_var(kXDGConfigDirs);
+  char *const vimruntime = vim_getenv("VIMRUNTIME");
 #define SITE_SIZE (sizeof("site") - 1)
 #define AFTER_SIZE (sizeof("after") - 1)
   size_t data_len = 0;
@@ -1843,7 +1859,7 @@ char *runtimepath_default(bool clean_arg)
   if (data_home != NULL) {
     data_len = strlen(data_home);
     size_t nvim_data_size = appname_len;
-#if defined(MSWIN)
+#ifdef MSWIN
     nvim_data_size += sizeof("-data") - 1;  // -1: NULL byte should be ignored
 #endif
     if (data_len != 0) {
@@ -2503,7 +2519,7 @@ int find_script_by_name(char *name)
     // - If a script is deleted and another script is written, with a
     //   different name, the inode may be re-used.
     scriptitem_T *si = SCRIPT_ITEM(sid);
-    if (si->sn_name != NULL && path_fnamecmp(si->sn_name, name) == 0) {
+    if (si->sn_name != NULL && path_equal(si->sn_name, name, kPathCmpLiteral)) {
       return sid;
     }
   }
@@ -2523,6 +2539,7 @@ void ex_scriptnames(exarg_T *eap)
       } else {
         expand_env(eap->arg, NameBuff, MAXPATHL);
         eap->arg = NameBuff;
+        TO_SLASH(eap->arg);
       }
       do_exedit(eap, NULL);
     }
@@ -2544,19 +2561,6 @@ void ex_scriptnames(exarg_T *eap)
     }
   }
 }
-
-#if defined(BACKSLASH_IN_FILENAME)
-/// Fix slashes in the list of script names for 'shellslash'.
-void scriptnames_slash_adjust(void)
-{
-  for (int i = 1; i <= script_items.ga_len; i++) {
-    if (SCRIPT_ITEM(i)->sn_name != NULL) {
-      slash_adjust(SCRIPT_ITEM(i)->sn_name);
-    }
-  }
-}
-
-#endif
 
 /// Get a pointer to a script name.  Used for ":verbose set".
 /// Message appended to "Last set from "
@@ -2606,7 +2610,7 @@ char *get_scriptname(sctx_T script_ctx, bool *should_free)
   }
 }
 
-#if defined(EXITFREE)
+#ifdef EXITFREE
 void free_scriptnames(void)
 {
   profile_reset();
@@ -2770,7 +2774,7 @@ char *getsourceline(int c, void *cookie, int indent, bool do_concat)
 
   // Only concatenate lines starting with a \ when 'cpoptions' doesn't
   // contain the 'C' flag.
-  if (line != NULL && do_concat && (vim_strchr(p_cpo, CPO_CONCAT) == NULL)) {
+  if (line != NULL && do_concat && (vim_strchr(p_cpo, kCpoConcat) == NULL)) {
     char *p;
     // compensate for the one line read-ahead
     sp->sourcing_lnum--;
@@ -2874,8 +2878,9 @@ retry:
     have_read = true;
     ga.ga_len = len;
 
-    // If the line was longer than the buffer, read more.
-    if (ga.ga_maxlen - ga.ga_len == 1 && buf[len - 1] != '\n') {
+    // If reading from a file and the line was longer than the buffer, read more.
+    if (!sp->source_from_buf_or_str
+        && ga.ga_maxlen - ga.ga_len == 1 && buf[len - 1] != '\n') {
       continue;
     }
 

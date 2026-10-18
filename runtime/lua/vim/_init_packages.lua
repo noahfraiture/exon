@@ -1,4 +1,3 @@
--- Modified by the Neovim Helix fork; see contrib/helix/DISTRIBUTION.md.
 local pathtrails = {} --- @type table<string,true> ta
 vim._so_trails = {} --- @type string[]
 for s in (package.cpath .. ';'):gmatch('[^;]*;') do
@@ -54,7 +53,6 @@ end
 require('vim._core.shared')
 
 vim._submodules = {
-  helix = true,
   inspect = true,
   version = true,
   fs = true,
@@ -62,6 +60,7 @@ vim._submodules = {
   iter = true,
   re = true,
   text = true,
+  tty = true,
   provider = true,
 }
 

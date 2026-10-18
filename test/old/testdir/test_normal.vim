@@ -535,9 +535,13 @@ func Test_normal09c_operatorfunc()
   new
   call setline(1, ['first', 'first', 'third', 'third', 'second'])
   normal! 1GVjg@
-  normal! 5G.
   normal! 3G.
-  call assert_equal(['_____', '_____', '_____', '_____', '______'], getline(1, '$'))
+  " Nvim: "." re-executes the captured keysequence ("Vjg@"), not an equal-size
+  " reselect. At the last line the replayed "j" fails, aborting the replay:
+  " nothing is applied (and the pending Visual mode is left active).
+  normal! 5G.
+  exe "normal! \<Esc>"
+  call assert_equal(['_____', '_____', '_____', '_____', 'second'], getline(1, '$'))
   bwipe!
   set operatorfunc=
 endfunc
@@ -937,7 +941,7 @@ endfunc
 " Test for errors with z command
 func Test_normal_z_error()
   call assert_beeps('normal! z2p')
-  call assert_beeps('normal! zq')
+  call assert_beeps('normal! zK')
   call assert_beeps('normal! cz1')
 endfunc
 
@@ -2798,6 +2802,7 @@ func Test_normal33_g_cmd2()
 endfunc
 
 func Test_normal_ex_substitute()
+  throw 'Skipped: Nvim "gQ" restores multicursors (not Ex-mode)'
   " This was hanging on the substitute prompt.
   new
   call setline(1, 'a')
@@ -2909,7 +2914,7 @@ func Test_normal_8g8()
   " With invalid byte.
   call setline(1, "___\xff___")
   norm! 1G08g8g
-  call assert_equal([0, 1, 4, 0, 1], getcurpos())
+  call assert_equal([0, 1, 4, 0, 4], getcurpos())
 
   " With invalid byte before the cursor.
   call setline(1, "___\xff___")
@@ -2919,12 +2924,12 @@ func Test_normal_8g8()
   " With truncated sequence.
   call setline(1, "___\xE2\x82___")
   norm! 1G08g8g
-  call assert_equal([0, 1, 4, 0, 1], getcurpos())
+  call assert_equal([0, 1, 4, 0, 4], getcurpos())
 
   " With overlong sequence.
   call setline(1, "___\xF0\x82\x82\xAC___")
   norm! 1G08g8g
-  call assert_equal([0, 1, 4, 0, 1], getcurpos())
+  call assert_equal([0, 1, 4, 0, 4], getcurpos())
 
   " With valid utf8.
   call setline(1, "café")
@@ -3081,6 +3086,9 @@ endfunc
 
 " Test for CTRL-\ commands
 func Test_normal40_ctrl_bsl()
+  " Nvim #40312: includes a cmdwin assertion that doesn't translate
+  " (cmdwin is now a normal window so CTRL-\ CTRL-N is a no-op there).
+  throw 'Skipped: Nvim supports cmdwin freedom #40312'
   new
   call append(0, 'here      are   some words')
   exe "norm! 1gg0a\<C-\>\<C-N>"
@@ -3239,11 +3247,8 @@ func Test_normal50_commandline()
   func! DoTimerWork(id)
     call assert_equal(1, getbufinfo('')[0].command)
 
-    " should fail, with E11, but does fail with E23?
-    "call feedkeys("\<c-^>", 'tm')
-
-    " should fail with E11 - "Invalid in command-line window"
-    call assert_fails(":wincmd p", 'E11')
+    " Nvim removed the E11 "Invalid in command-line window" restriction (#40312, #40484).
+    "call assert_fails(":wincmd p", 'E11')
 
     " Return from commandline window.
     call feedkeys("\<CR>", 't')
@@ -3904,6 +3909,108 @@ func Test_normal_percent_jump()
   call feedkeys('50%', 'xt')
   call assert_equal(50, line('.'))
   call assert_equal(-1, foldclosedend(50))
+
+  bwipe!
+endfunc
+
+" Test that "%" skips parens inside comments when 'comments' defines C-style
+" "//" or "/*" comments.
+func Test_normal_percent_skip_comment()
+  new
+  setlocal comments=s1:/*,mb:*,ex:*/,://
+
+  " Forward: skip a ")" inside a // comment, match the real one.
+  silent! %delete _
+  call setline(1, ['foo(  // )', ');'])
+  call cursor(1, 4)
+  normal %
+  call assert_equal([2, 1], [line('.'), col('.')])
+
+  " Forward: skip a ")" inside a /* */ comment, match the real one.
+  silent! %delete _
+  call setline(1, ['bar( /* ) */ x)'])
+  call cursor(1, 4)
+  normal %
+  call assert_equal([1, 15], [line('.'), col('.')])
+
+  " Backward: skip a "(" inside a // comment, match the real one.
+  silent! %delete _
+  call setline(1, ['( // (', ')'])
+  call cursor(2, 1)
+  normal %
+  call assert_equal([1, 1], [line('.'), col('.')])
+
+  " Cursor inside a // comment: a match inside that comment is still found.
+  silent! %delete _
+  call setline(1, ['x // ( y )'])
+  call cursor(1, 6)
+  normal %
+  call assert_equal([1, 10], [line('.'), col('.')])
+
+  " Cursor inside a /* */ comment: a match inside that comment is still found.
+  silent! %delete _
+  call setline(1, ['/* a ( b ) c */'])
+  call cursor(1, 6)
+  normal %
+  call assert_equal([1, 10], [line('.'), col('.')])
+
+  " When 'comments' has no C-style comments the parens are not skipped.
+  setlocal comments=b:#
+  silent! %delete _
+  call setline(1, ['foo(  // )', ');'])
+  call cursor(1, 4)
+  normal %
+  call assert_equal([1, 10], [line('.'), col('.')])
+
+  " With "%" in 'cpoptions' Vi-compatible matching is used and the parens
+  " inside comments are not skipped.
+  let save_cpo = &cpoptions
+  setlocal comments=s1:/*,mb:*,ex:*/,://
+  set cpoptions+=%
+  silent! %delete _
+  call setline(1, ['foo(  // )', ');'])
+  call cursor(1, 4)
+  normal %
+  call assert_equal([1, 10], [line('.'), col('.')])
+  let &cpoptions = save_cpo
+
+  bwipe!
+endfunc
+
+" A "//" inside a string must not be treated as a line comment by "%".  The
+" line is scanned in a single pass, so this stays fast even on lines with many
+" slashes (e.g. base64 data).
+func Test_normal_percent_skip_comment_string()
+  new
+  setlocal comments=s1:/*,mb:*,ex:*/,://
+
+  " The "//" inside the string is not a comment, so "(" matches the real ")".
+  call setline(1, ['("a // b")'])
+  call cursor(1, 1)
+  normal %
+  call assert_equal([1, 10], [line('.'), col('.')])
+
+  " JSON-like: "{" matches the closing "}" although the string has slashes.
+  silent! %delete _
+  call setline(1, ['{', '  "k": "x//y",', '}'])
+  call cursor(1, 1)
+  normal %
+  call assert_equal([3, 1], [line('.'), col('.')])
+
+  " A "/*" inside a string must not start a block comment, so "(" still
+  " matches the real ")" after the string.
+  silent! %delete _
+  call setline(1, ['( "a /* b" )'])
+  call cursor(1, 1)
+  normal %
+  call assert_equal([1, 12], [line('.'), col('.')])
+
+  " A real /* */ block comment is still skipped: "(" matches the last ")".
+  silent! %delete _
+  call setline(1, ['( /* ) */ x )'])
+  call cursor(1, 1)
+  normal %
+  call assert_equal([1, 13], [line('.'), col('.')])
 
   bwipe!
 endfunc

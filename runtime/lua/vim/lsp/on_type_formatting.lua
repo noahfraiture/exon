@@ -1,4 +1,5 @@
 local api = vim.api
+local nvim_on = require('vim._core.util').nvim_on
 local lsp = vim.lsp
 local util = lsp.util
 local method = 'textDocument/onTypeFormatting'
@@ -8,7 +9,7 @@ local current_buf = api.nvim_get_current_buf
 local get_mode = api.nvim_get_mode
 
 local ns = api.nvim_create_namespace('nvim.lsp.on_type_formatting')
-local augroup = api.nvim_create_augroup('nvim.lsp.on_type_formatting', {})
+local augroup = api.nvim_create_augroup('nvim.lsp.on_type_formatting')
 
 local M = {}
 
@@ -36,14 +37,14 @@ local function on_type_formatting(err, result, ctx)
     return
   end
 
-  local client = assert(vim.lsp.get_client_by_id(ctx.client_id))
+  local client = assert(lsp.get_client_by_id(ctx.client_id))
 
-  util.apply_text_edits(result, ctx.bufnr, client.offset_encoding)
+  util.apply_text_edits(result, bufnr, client.offset_encoding)
 end
 
 ---@param bufnr integer
 ---@param typed string
----@param triggered_clients vim.lsp.Client[]
+---@param triggered_clients table<integer, vim.lsp.Client>
 ---@param idx integer?
 ---@param client vim.lsp.Client?
 local function format_iter(bufnr, typed, triggered_clients, idx, client)
@@ -157,27 +158,24 @@ local function attach(client, bufnr)
   end
 
   api.nvim_clear_autocmds({ group = augroup, buf = bufnr })
-  api.nvim_create_autocmd('LspDetach', {
+  nvim_on('LspDetach', augroup, {
     buf = bufnr,
     desc = 'Detach on-type formatting module when the client detaches',
-    group = augroup,
-    callback = function(ev)
-      local detached_client = assert(lsp.get_client_by_id(ev.data.client_id))
-      detach(detached_client, bufnr)
-    end,
-  })
+  }, function(ev)
+    local detached_client = assert(lsp.get_client_by_id(ev.data.client_id))
+    detach(detached_client, bufnr)
+  end)
 end
 
-api.nvim_create_autocmd('LspAttach', {
+nvim_on('LspAttach', nil, {
   desc = 'Enable on-type formatting for all buffers with individually-enabled clients.',
-  callback = function(ev)
-    local buf = ev.buf
-    local client = assert(lsp.get_client_by_id(ev.data.client_id))
-    if client._otf_enabled then
-      attach(client, buf)
-    end
-  end,
-})
+}, function(ev)
+  local buf = ev.buf
+  local client = assert(lsp.get_client_by_id(ev.data.client_id))
+  if client._otf_enabled then
+    attach(client, buf)
+  end
+end)
 
 ---@param enable boolean
 ---@param client vim.lsp.Client
@@ -203,16 +201,14 @@ local function toggle_globally(enable)
   -- If disabling, only clear the attachment autocmd. If enabling, create it as well.
   local group = api.nvim_create_augroup('nvim.lsp.on_type_formatting', { clear = true })
   if enable then
-    api.nvim_create_autocmd('LspAttach', {
-      group = group,
+    nvim_on('LspAttach', group, {
       desc = 'Enable on-type formatting for ALL clients by default.',
-      callback = function(ev)
-        local client = assert(lsp.get_client_by_id(ev.data.client_id))
-        if client._otf_enabled ~= false then
-          attach(client, ev.buf)
-        end
-      end,
-    })
+    }, function(ev)
+      local client = assert(lsp.get_client_by_id(ev.data.client_id))
+      if client._otf_enabled ~= false then
+        attach(client, ev.buf)
+      end
+    end)
   end
 end
 
@@ -250,8 +246,10 @@ function M.enable(enable, filter)
   filter = filter or {}
 
   if filter.client_id then
-    local client =
-      assert(lsp.get_client_by_id(filter.client_id), 'Client not found for id ' .. filter.client_id)
+    local client = lsp.get_client_by_id(filter.client_id)
+    if not client then
+      error('Client not found for id ' .. filter.client_id)
+    end
     toggle_for_client(enable, client)
   else
     toggle_globally(enable)

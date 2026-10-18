@@ -63,6 +63,11 @@ typedef struct {
   char *func;  ///< Function to run.
 } StlClickDefinition;
 
+typedef struct {
+  StlClickDefinition *def;  ///< Click definition.
+  size_t size;              ///< Click definition size.
+} StcClick;
+
 /// Used for tabline clicks
 typedef struct {
   StlClickDefinition def;  ///< Click definition.
@@ -85,17 +90,20 @@ struct stl_item {
   int minwid;              ///< The minimum width of the item
   int maxwid;              ///< The maximum width of the item
   enum {
+    Disabled,
     Normal,
-    Empty,
+    NormalEmpty,
     Group,
     Separate,
+    Trunc,
+    Expression,
     Highlight,
     HighlightCombining,
+    HighlightScope,
     HighlightSign,
     HighlightFold,
     TabPage,
     ClickFunc,
-    Trunc,
   } type;
 };
 

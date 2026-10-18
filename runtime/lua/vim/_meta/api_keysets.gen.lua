@@ -17,6 +17,9 @@ error('Cannot require a meta file')
 --- @field force? boolean
 --- @field unload? boolean
 
+--- @class vim.api.keyset.chan_set
+--- @field detach? boolean
+
 --- @class vim.api.keyset.clear_autocmds
 --- @field buf? integer
 --- @field buffer? integer
@@ -26,12 +29,12 @@ error('Cannot require a meta file')
 
 --- @class vim.api.keyset.cmd
 --- @field addr? "line"|"arg"|"buf"|"load"|"win"|"tab"|"qf"|"none"|"?"
---- @field args? string[]
+--- @field args? (integer|string|boolean)[]
 --- @field bang? boolean
 --- @field cmd? string
 --- @field count? integer
 --- @field magic? vim.api.keyset.cmd.magic
---- @field mods? vim.api.keyset.cmd.mods
+--- @field mods? vim.api.keyset.cmd_mods
 --- @field nargs? integer|"?"|"+"|"*"
 --- @field nextcmd? string
 --- @field range? integer[]
@@ -45,7 +48,7 @@ error('Cannot require a meta file')
 --- @field browse? boolean
 --- @field confirm? boolean
 --- @field emsg_silent? boolean
---- @field filter? table<string,any>
+--- @field filter? vim.api.keyset.cmd_mods_filter
 --- @field hide? boolean
 --- @field horizontal? boolean
 --- @field keepalt? boolean
@@ -57,7 +60,7 @@ error('Cannot require a meta file')
 --- @field noswapfile? boolean
 --- @field sandbox? boolean
 --- @field silent? boolean
---- @field split? string
+--- @field split? ""|"botright"|"topleft"|"belowright"|"aboveleft"|"rightbelow"|"leftabove"
 --- @field tab? integer
 --- @field unsilent? boolean
 --- @field verbose? integer
@@ -88,7 +91,6 @@ error('Cannot require a meta file')
 --- |'BufFilePre'
 --- |'BufHidden'
 --- |'BufLeave'
---- |'BufModifiedSet'
 --- |'BufNew'
 --- |'BufNewFile'
 --- |'BufRead'
@@ -103,8 +105,10 @@ error('Cannot require a meta file')
 --- |'BufWriteCmd'
 --- |'BufWritePost'
 --- |'BufWritePre'
+--- |'ChanClose'
 --- |'ChanInfo'
 --- |'ChanOpen'
+--- |'CmdAtom'
 --- |'CmdUndefined'
 --- |'CmdlineChanged'
 --- |'CmdlineEnter'
@@ -180,6 +184,7 @@ error('Cannot require a meta file')
 --- |'SessionLoadPost'
 --- |'SessionLoadPre'
 --- |'SessionWritePost'
+--- |'SessionWritePre'
 --- |'ShellCmdPost'
 --- |'ShellFilterPost'
 --- |'Signal'
@@ -195,6 +200,7 @@ error('Cannot require a meta file')
 --- |'TabClosedPre'
 --- |'TabEnter'
 --- |'TabLeave'
+--- |'TabMoved'
 --- |'TabNew'
 --- |'TabNewEntered'
 --- |'TermChanged'
@@ -208,6 +214,8 @@ error('Cannot require a meta file')
 --- |'TextChangedI'
 --- |'TextChangedP'
 --- |'TextChangedT'
+--- |'TextPutPost'
+--- |'TextPutPre'
 --- |'TextYankPost'
 --- |'UIEnter'
 --- |'UILeave'
@@ -319,6 +327,7 @@ error('Cannot require a meta file')
 --- @field fallback? boolean
 --- @field fg? integer|string
 --- @field fg_indexed? boolean
+--- @field font? string
 --- @field force? boolean
 --- @field foreground? integer|string
 --- @field italic? boolean
@@ -368,6 +377,9 @@ error('Cannot require a meta file')
 --- @field silent? boolean
 --- @field unique? boolean
 
+--- @class vim.api.keyset.keymap_del
+--- @field lhs? boolean
+
 --- @class vim.api.keyset.ns_opts
 --- @field wins? any[]
 
@@ -377,8 +389,11 @@ error('Cannot require a meta file')
 
 --- @class vim.api.keyset.option
 --- @field buf? integer
+--- @field dry_run? boolean
 --- @field filetype? string
+--- @field operation? string
 --- @field scope? string
+--- @field tab? integer
 --- @field win? integer
 
 --- @class vim.api.keyset.redraw
@@ -409,7 +424,7 @@ error('Cannot require a meta file')
 --- @field _on_spell_nav? fun(_: "spell_nav")
 
 --- @class vim.api.keyset.set_extmark
---- @field conceal? string
+--- @field conceal? string|boolean
 --- @field conceal_lines? string
 --- @field cursorline_hl_group? integer|string
 --- @field end_col? integer
@@ -437,7 +452,7 @@ error('Cannot require a meta file')
 --- @field virt_lines? any[]
 --- @field virt_lines_above? boolean
 --- @field virt_lines_leftcol? boolean
---- @field virt_lines_overflow? "trunc"|"scroll"
+--- @field virt_lines_overflow? "trunc"|"scroll"|"wrap"|"auto"
 --- @field virt_text? any[]
 --- @field virt_text_hide? boolean
 --- @field virt_text_pos? "eol"|"eol_right_align"|"overlay"|"right_align"|"inline"
@@ -464,7 +479,7 @@ error('Cannot require a meta file')
 
 --- @class vim.api.keyset.win_config
 --- @field anchor? "NW"|"NE"|"SW"|"SE"
---- @field border? any[]|"none"|"single"|"double"|"rounded"|"solid"|"shadow"
+--- @field border? any[]|""|"none"|"single"|"double"|"rounded"|"solid"|"shadow"|"bold"
 --- @field bufpos? integer[]
 --- @field col? number
 --- @field external? boolean
@@ -487,6 +502,9 @@ error('Cannot require a meta file')
 --- @field win? integer
 --- @field zindex? integer
 --- @field _cmdline_offset? integer
+
+--- @class vim.api.keyset.win_resize
+--- @field anchor? string
 
 --- @class vim.api.keyset.win_text_height
 --- @field end_row? integer

@@ -15,6 +15,7 @@ mark_as_advanced(
 if(HAVE_WORKING_LIBINTL AND GETTEXT_FOUND AND XGETTEXT_PRG AND ICONV_PRG)
   set(LANGUAGES
     af
+    az
     ca
     cs
     da
@@ -56,9 +57,12 @@ if(HAVE_WORKING_LIBINTL AND GETTEXT_FOUND AND XGETTEXT_PRG AND ICONV_PRG)
   add_custom_command(
     OUTPUT ${NVIM_POT}
     COMMAND ${XGETTEXT_PRG} -o ${NVIM_POT} --default-domain=nvim
-      --add-comments --keyword=_ --keyword=N_ --keyword=NGETTEXT:1,2
+      --keyword=_ --keyword=N_ --keyword=NGETTEXT:1,2 --no-location
       -D ${CMAKE_CURRENT_SOURCE_DIR} -D ${CMAKE_CURRENT_BINARY_DIR}
       ${NVIM_RELATIVE_SOURCES} ${PROJECT_SOURCE_DIR}/runtime/scripts/optwin.lua
+      ${PROJECT_SOURCE_DIR}/runtime/lua/vim/_core/ex_cmd.lua
+      ${PROJECT_SOURCE_DIR}/runtime/lua/vim/_core/time.lua
+      ${PROJECT_SOURCE_DIR}/runtime/lua/vim/pack.lua
     VERBATIM
     DEPENDS ${NVIM_SOURCES} nvim_bin nvim_runtime_deps)
 

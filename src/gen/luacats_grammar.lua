@@ -23,28 +23,30 @@ end
 
 local ws = rep1(S(' \t'))
 local fill = opt(ws)
+-- Types may span lines, but return names and inline descriptions may not.
+local fill_multi = rep(S(' \t\n'))
 local any = P(1) -- (consume one character)
 local letter = R('az', 'AZ')
 local num = R('09')
 
 --- @param x string | vim.lpeg.Pattern
 local function Pf(x)
-  return fill * P(x) * fill
+  return fill_multi * P(x) * fill_multi
 end
 
 --- @param x string | vim.lpeg.Pattern
 local function Plf(x)
-  return fill * P(x)
+  return fill_multi * P(x)
 end
 
 --- @param x string
 local function Sf(x)
-  return fill * S(x) * fill
+  return fill_multi * S(x) * fill_multi
 end
 
 --- @param x vim.lpeg.Pattern
 local function paren(x)
-  return Pf('(') * x * fill * P(')')
+  return Pf('(') * x * fill_multi * P(')')
 end
 
 --- @param x vim.lpeg.Pattern
@@ -88,15 +90,17 @@ local v = setmetatable({}, {
 --- @class nvim.luacats.Class
 --- @field kind 'class'
 --- @field name string
+--- @field generics? string[]
 --- @field parent? string
---- @field access? 'private'|'protected'|'package'
+--- @field parent_generics? string[]
+--- @field access? 'private'|'protected'|'package'|'internal'
 
 --- @class nvim.luacats.Field
 --- @field kind 'field'
 --- @field name string
 --- @field type string
 --- @field desc? string
---- @field access? 'private'|'protected'|'package'
+--- @field access? 'private'|'protected'|'package'|'internal'
 
 --- @class nvim.luacats.Note
 --- @field desc? string
@@ -109,7 +113,7 @@ local v = setmetatable({}, {
 --- | nvim.luacats.Field
 --- | nvim.luacats.Note
 
---- @class nvim.luacats.grammar
+--- @class nvim.luacats.grammar : vim.lpeg.Pattern
 --- @field match fun(self, input: string): nvim.luacats.grammar.result?
 
 local function annot(nm, pat)
@@ -129,8 +133,8 @@ local ident = ident_first * rep(ident_first + num)
 local opt_ident = ident * opt(P('?'))
 local ty_ident_sep = S('-._')
 local ty_ident = ident * rep(ty_ident_sep * ident)
-local string_single = P "'" * rep(any - P "'") * P "'"
-local string_double = P('"') * rep(any - P('"')) * P('"')
+local string_single = P "'" * rep(any - S "'\n") * P "'"
+local string_double = P('"') * rep(any - S('"\n')) * P('"')
 local generic = P('`') * ty_ident * P('`')
 local literal = string_single + string_double + (opt(P('-')) * rep1(num)) + P('false') + P('true')
 local ty_prims = ty_ident + literal + generic
@@ -143,34 +147,43 @@ local typedef = P({
   'typedef',
   typedef = C(v.type),
 
-  type = v.ty * rep_array_opt_postfix * rep(Pf('|') * v.ty * rep_array_opt_postfix),
+  type = v.ty * rep_array_opt_postfix * rep(Sf('|&') * v.ty * rep_array_opt_postfix),
   ty = v.composite + paren(v.typedef),
   composite = (v.types * array_postfix)
     + (v.types * opt_postfix)
     + (P(ty_ident) * P('...')) -- Generic vararg
     + v.types,
-  types = v.generics + v.kv_table + v.tuple + v.dict + v.table_literal + v.fun + ty_prims,
+  types = v.keyof + v.fun + v.generics + v.kv_table + v.tuple + v.dict + v.table_literal + ty_prims,
 
+  keyof = P('keyof') * ws * v.ty,
   tuple = Pf('[') * comma1(v.type) * Plf(']'),
   dict = Pf('{') * comma1(Pf('[') * v.type * Pf(']') * colon * v.type) * Plf('}'),
   kv_table = Pf('table') * Pf('<') * v.type * Pf(',') * v.type * Plf('>'),
   table_literal = Pf('{') * comma1(opt_ident * Pf(':') * v.type) * Plf('}'),
   fun_param = (opt_ident + ellipsis) * opt(colon * v.type),
   fun_ret = v.type + (ellipsis * opt(colon * v.type)),
-  fun = opt(Pf('async')) * Pf('fun') * paren(comma(v.fun_param)) * opt(Pf(':') * comma1(v.fun_ret)),
+  generic_decl_list = Pf('<') * comma1(ty_ident * opt(ellipsis) * opt(colon * v.type)) * Plf('>'),
+  fun = opt(Pf('async') + Pf('sync')) * Pf('fun') * opt(v.generic_decl_list) * paren(
+    comma(v.fun_param)
+  ) * opt(Pf(':') * comma1(v.fun_ret)),
   generics = P(ty_ident) * Pf('<') * comma1(v.type) * Plf('>'),
 }) / function(match)
-  return vim.trim(match):gsub('^%((.*)%)$', '%1'):gsub('%?+', '?')
+  return (vim.trim(match):gsub('%s*\n%s*', ' '):gsub('^%((.*)%)$', '%1'):gsub('%?+', '?'))
 end
 
-local access = P('private') + P('protected') + P('package')
+--- @param name string
+local function generic_opt(name)
+  return (Pf('<') * Cg(Ct(comma1(typedef)), name) * Plf('>')) + -Plf('<')
+end
+
+local access = P('private') + P('protected') + P('package') + P('internal')
 local caccess = Cg(access, 'access')
 local cattr = Cg(comma(access + P('exact')), 'access')
-local desc_delim = Sf '#:' + ws
-local desc = Cg(rep(any), 'desc')
+local desc_delim = fill * S('#:') * fill + ws
+local desc = Cg(rep(any - P('\n')), 'desc')
 local opt_desc = opt(desc_delim * desc)
 local ty_name = Cg(ty_ident, 'name')
-local opt_parent = opt(colon * Cg(ty_ident, 'parent'))
+local opt_parent = opt(colon * Cg(ty_ident, 'parent') * generic_opt('parent_generics'))
 local lname = (ident + ellipsis) * opt(P('?'))
 
 -- stylua: ignore
@@ -178,11 +191,12 @@ local grammar = P {
   rep1(P('@') * (v.ats + v.ext_ats)),
 
   ats = annot('param', Cg(lname, 'name') * ws * v.ctype * opt_desc)
+    + annot('return_cast', desc)
     + annot('return', comma1(Ct(v.ctype * opt(ws * (ty_name + Cg(ellipsis, 'name'))))) * opt_desc)
     + annot('type', comma1(Ct(v.ctype)) * opt_desc)
     + annot('cast', ty_name * ws * opt(Sf('+-')) * v.ctype)
     + annot('generic', ty_name * opt(colon * v.ctype))
-    + annot('class', opt(paren(cattr)) * fill * ty_name * opt_parent)
+    + annot('class', opt(paren(cattr)) * fill * ty_name * generic_opt('generics') * opt_parent)
     + annot('field', opt(caccess * ws) * v.field_name * ws * v.ctype * opt_desc)
     + annot('operator', ty_name * opt(paren(Cg(v.ctype, 'argtype'))) * colon * v.ctype)
     + annot(access)

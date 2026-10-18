@@ -4,6 +4,7 @@ local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local clear, feed, insert = n.clear, n.feed, n.insert
 local expect = n.expect
 local command = n.command
@@ -46,6 +47,56 @@ describe('insert-mode', function()
     -- CTRL-A inserts last inserted text
     feed('i<C-A>x')
     expect('hellhellhellhelloxo')
+  end)
+
+  it('InsertCharPre is not triggered for stuffed text (redo/dot-repeat) #25296', function()
+    n.exec_lua([[
+      _G.n = 0
+      vim.api.nvim_create_autocmd('InsertCharPre', {
+        callback = function()
+          _G.n = _G.n + 1
+          if vim.v.char == '(' then
+            vim.v.char = '()'
+          end
+        end,
+      })
+    ]])
+    local function calls()
+      return n.exec_lua('return _G.n')
+    end
+    api.nvim_buf_set_lines(0, 0, -1, true, { 'a', 'b', 'c', 'd' })
+    feed('gg0i(<Esc>')
+    eq(1, calls())
+
+    -- Dot-repeat ("redo") inserts literally (no InsertCharPre).
+    feed('j.')
+    expect([[
+      ()a
+      ()b
+      c
+      d]])
+    eq(1, calls())
+
+    -- i_CTRL-R, i_CTRL-A inserts as stuffed text (no InsertCharPre).
+    n.fn.setreg('a', '(')
+    feed('ji<C-R>a<Esc>')
+    feed('ji<C-A><Esc>')
+    expect([[
+      ()a
+      ()b
+      (c
+      (d]])
+    eq(1, calls())
+
+    -- Macro keys are typeahead, not stuffed, thus trigger InsertCharPre.
+    n.fn.setreg('q', 'A(\27')
+    feed('gg@q')
+    expect([[
+      ()a()
+      ()b
+      (c
+      (d]])
+    eq(2, calls())
   end)
 
   describe('Ctrl-R', function()

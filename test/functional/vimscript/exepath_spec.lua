@@ -1,6 +1,7 @@
 local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local eq, clear, call = t.eq, n.clear, n.call
 local command = n.command
 local matches = t.matches
@@ -76,4 +77,10 @@ describe('exepath()', function()
       end
     )
   end
+
+  it('respects shellslash #39524', function()
+    t.skip(not is_os('win'), "N/A: 'shellslash' only works on Windows")
+    local path = call('exepath', 'cmd.exe') ---@type string
+    t.ok(nil == path:find('/'))
+  end)
 end)

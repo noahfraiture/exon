@@ -1,6 +1,7 @@
 local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local command = n.command
 local api = n.api
 local fn = n.fn
@@ -50,6 +51,8 @@ describe('optwin.lua', function()
     feed('<CR>')
     neq(line, api.nvim_get_current_line())
     command 'wincmd o'
+    feed('<CR>')
+    eq(line, api.nvim_get_current_line())
     feed('<CR>')
     neq(line, api.nvim_get_current_line())
   end)

@@ -131,7 +131,7 @@ void loop_on_put(MultiQueue *queue, void *data)
   }
 }
 
-#if !defined(EXITFREE)
+#ifndef EXITFREE
 static void loop_walk_cb(uv_handle_t *handle, void *arg)
 {
   if (!uv_is_closing(handle)) {
@@ -165,7 +165,7 @@ bool loop_close(Loop *loop, bool wait)
     if ((uv_loop_close(&loop->uv) != UV_EBUSY) || !wait) {
       break;
     }
-    uint64_t elapsed_s = (os_hrtime() - start) / 1000000000;  // seconds
+    uint64_t elapsed_s = (os_hrtime() - start) / NS_PER_SEC;
     if (elapsed_s >= 2) {
       // Some libuv resource was not correctly deref'd. Log and bail.
       rv = false;
@@ -173,7 +173,7 @@ bool loop_close(Loop *loop, bool wait)
       log_uv_handles(&loop->uv);
       break;
     }
-#if defined(EXITFREE)
+#ifdef EXITFREE
     (void)didstop;
 #else
     if (!didstop) {

@@ -1,6 +1,8 @@
 --- @diagnostic disable: duplicate-doc-alias
 
----@param tbl table<string, string|number>
+---@generic T: string|number
+---@param tbl table<string, T>
+---@return T[]
 local function get_value_set(tbl)
   local value_set = {}
   for _, v in pairs(tbl) do
@@ -99,6 +101,7 @@ local constants = {
 
   -- Completion item tags are extra annotations that tweak the rendering of a
   -- completion item
+  ---@type table<string, lsp.CompletionItemTag>
   CompletionTag = {
     -- Render a completion as obsolete, usually using a strike-out.
     Deprecated = 1,
@@ -145,6 +148,7 @@ local constants = {
   },
 
   -- Extra annotations that tweak the rendering of a symbol.
+  ---@type table<string, lsp.SymbolTag>
   SymbolTag = {
     Deprecated = 1,
   },
@@ -241,6 +245,15 @@ local constants = {
     Change = 2,
     -- Interested in delete events
     Delete = 4,
+  },
+
+  -- Defines how values from a set of defaults and an individual item will be merged.
+  ApplyKind = {
+    -- The value from the individual item (if provided and not `null`) will be used
+    -- instead of the default.
+    Replace = 1,
+    -- The value from the item will be merged with the default.
+    Merge = 2,
   },
 
   -- Defines whether the insert text in a completion item should be interpreted as
@@ -475,8 +488,8 @@ function protocol.make_client_capabilities()
         dynamicRegistration = false,
         completionItem = {
           snippetSupport = true,
-          commitCharactersSupport = false,
-          preselectSupport = false,
+          commitCharactersSupport = true,
+          preselectSupport = true,
           deprecatedSupport = true,
           documentationFormat = { constants.MarkupKind.Markdown, constants.MarkupKind.PlainText },
           insertReplaceSupport = true,
@@ -485,6 +498,7 @@ function protocol.make_client_capabilities()
               'additionalTextEdits',
               'command',
               'documentation',
+              'detail',
             },
           },
           tagSupport = {
@@ -497,11 +511,13 @@ function protocol.make_client_capabilities()
         },
         completionList = {
           itemDefaults = {
+            'commitCharacters',
             'editRange',
             'insertTextFormat',
             'insertTextMode',
             'data',
           },
+          applyKindSupport = true,
         },
         contextSupport = true,
       },
@@ -571,6 +587,9 @@ function protocol.make_client_capabilities()
       callHierarchy = {
         dynamicRegistration = false,
       },
+      typeHierarchy = {
+        dynamicRegistration = false,
+      },
       colorProvider = {
         dynamicRegistration = true,
       },
@@ -593,6 +612,9 @@ function protocol.make_client_capabilities()
       },
       configuration = true,
       didChangeConfiguration = {
+        dynamicRegistration = false,
+      },
+      executeCommand = {
         dynamicRegistration = false,
       },
       workspaceFolders = true,
@@ -619,6 +641,9 @@ function protocol.make_client_capabilities()
         refreshSupport = true,
       },
       diagnostics = {
+        refreshSupport = true,
+      },
+      foldingRange = {
         refreshSupport = true,
       },
       fileOperations = {
@@ -890,7 +915,7 @@ protocol.Methods = {
   textDocument_codeLens = 'textDocument/codeLens',
   --- A request to list all presentation for a color. The request's
   --- parameter is of type {@link ColorPresentationParams} the
-  --- response is of type {@link ColorInformation ColorInformation[]} or a Thenable
+  --- response is of type {@link ColorPresentation ColorPresentation[]} or a Thenable
   --- that resolves to such.
   textDocument_colorPresentation = 'textDocument/colorPresentation',
   --- Request to request completion at a given text document position. The request's
@@ -979,7 +1004,6 @@ protocol.Methods = {
   --- type {@link InlineCompletionParams}, the response is of type
   --- {@link InlineCompletion InlineCompletion[]} or a Thenable that resolves to such.
   --- @since 3.18.0
-  --- @proposed
   textDocument_inlineCompletion = 'textDocument/inlineCompletion',
   --- A request to provide inline values in a document. The request's parameter is of
   --- type {@link InlineValueParams}, the response is of type
@@ -1013,7 +1037,6 @@ protocol.Methods = {
   textDocument_rangeFormatting = 'textDocument/rangeFormatting',
   --- A request to format ranges in a document.
   --- @since 3.18.0
-  --- @proposed
   textDocument_rangesFormatting = 'textDocument/rangesFormatting',
   --- A request to resolve project-wide references for the symbol denoted
   --- by the given text document position. The request's parameter is of
@@ -1122,8 +1145,8 @@ protocol.Methods = {
   --- A request send from the client to the server to execute a command. The request might return
   --- a workspace edit which the client will apply to the workspace.
   workspace_executeCommand = 'workspace/executeCommand',
+  --- A request to refresh the folding ranges in a document.
   --- @since 3.18.0
-  --- @proposed
   workspace_foldingRange_refresh = 'workspace/foldingRange/refresh',
   --- @since 3.17.0
   workspace_inlayHint_refresh = 'workspace/inlayHint/refresh',
@@ -1142,12 +1165,10 @@ protocol.Methods = {
   --- The `workspace/textDocumentContent` request is sent from the client to the
   --- server to request the content of a text document.
   --- @since 3.18.0
-  --- @proposed
   workspace_textDocumentContent = 'workspace/textDocumentContent',
   --- The `workspace/textDocumentContent` request is sent from the server to the client to refresh
   --- the content of a specific text document.
   --- @since 3.18.0
-  --- @proposed
   workspace_textDocumentContent_refresh = 'workspace/textDocumentContent/refresh',
   --- The will create files request is sent from the client to the server before files are actually
   --- created as long as the creation is triggered from within the client.
@@ -1177,7 +1198,6 @@ protocol.Methods = {
 -- stylua: ignore start
 -- Generated by gen_lsp.lua, keep at end of file.
 --- Maps method names to the required client capability
----TODO: also has workspace/* items because spec lacks a top-level "workspaceProvider"
 protocol._provider_to_client_registration = {
   ['callHierarchyProvider'] = { 'textDocument', 'callHierarchy' },
   ['codeActionProvider'] = { 'textDocument', 'codeAction' },
@@ -1210,16 +1230,118 @@ protocol._provider_to_client_registration = {
   ['textDocumentSync'] = { 'textDocument', 'synchronization' },
   ['typeDefinitionProvider'] = { 'textDocument', 'typeDefinition' },
   ['typeHierarchyProvider'] = { 'textDocument', 'typeHierarchy' },
+  ['workspace.fileOperations.didCreate'] = { 'workspace', 'fileOperations', 'didCreate' },
+  ['workspace.fileOperations.didDelete'] = { 'workspace', 'fileOperations', 'didDelete' },
+  ['workspace.fileOperations.didRename'] = { 'workspace', 'fileOperations', 'didRename' },
+  ['workspace.fileOperations.willCreate'] = { 'workspace', 'fileOperations', 'willCreate' },
+  ['workspace.fileOperations.willDelete'] = { 'workspace', 'fileOperations', 'willDelete' },
+  ['workspace.fileOperations.willRename'] = { 'workspace', 'fileOperations', 'willRename' },
+  ['workspace.textDocumentContent'] = { 'workspace', 'textDocumentContent' },
   ['workspace/didChangeConfiguration'] = { 'workspace', 'didChangeConfiguration' },
   ['workspace/didChangeWatchedFiles'] = { 'workspace', 'didChangeWatchedFiles' },
-  ['workspace/didCreateFiles'] = { 'workspace', 'fileOperations', 'didCreate' },
-  ['workspace/didDeleteFiles'] = { 'workspace', 'fileOperations', 'didDelete' },
-  ['workspace/didRenameFiles'] = { 'workspace', 'fileOperations', 'didRename' },
-  ['workspace/textDocumentContent'] = { 'workspace', 'textDocumentContent' },
-  ['workspace/willCreateFiles'] = { 'workspace', 'fileOperations', 'willCreate' },
-  ['workspace/willDeleteFiles'] = { 'workspace', 'fileOperations', 'willDelete' },
-  ['workspace/willRenameFiles'] = { 'workspace', 'fileOperations', 'willRename' },
   ['workspaceSymbolProvider'] = { 'workspace', 'symbol' },
+}
+-- stylua: ignore end
+
+-- stylua: ignore start
+-- Generated by gen_lsp.lua, keep at end of file.
+--- Maps method names to dynamic/static registration providers
+protocol._request_name_to_registration_provider = {
+  ['callHierarchy/incomingCalls'] = 'callHierarchyProvider',
+  ['callHierarchy/outgoingCalls'] = 'callHierarchyProvider',
+  ['client/registerCapability'] = 'client/registerCapability',
+  ['client/unregisterCapability'] = 'client/unregisterCapability',
+  ['codeAction/resolve'] = 'codeActionProvider',
+  ['codeLens/resolve'] = 'codeLensProvider',
+  ['completionItem/resolve'] = 'completionProvider',
+  ['documentLink/resolve'] = 'documentLinkProvider',
+  ['$/cancelRequest'] = '$/cancelRequest',
+  ['$/logTrace'] = '$/logTrace',
+  ['$/progress'] = '$/progress',
+  ['$/setTrace'] = '$/setTrace',
+  ['exit'] = 'exit',
+  ['initialize'] = 'initialize',
+  ['initialized'] = 'initialized',
+  ['inlayHint/resolve'] = 'inlayHintProvider',
+  ['notebookDocument/didChange'] = 'notebookDocument/didChange',
+  ['notebookDocument/didClose'] = 'notebookDocument/didClose',
+  ['notebookDocument/didOpen'] = 'notebookDocument/didOpen',
+  ['notebookDocument/didSave'] = 'notebookDocument/didSave',
+  ['shutdown'] = 'shutdown',
+  ['telemetry/event'] = 'telemetry/event',
+  ['textDocument/codeAction'] = 'codeActionProvider',
+  ['textDocument/codeLens'] = 'codeLensProvider',
+  ['textDocument/colorPresentation'] = 'colorProvider',
+  ['textDocument/completion'] = 'completionProvider',
+  ['textDocument/declaration'] = 'declarationProvider',
+  ['textDocument/definition'] = 'definitionProvider',
+  ['textDocument/diagnostic'] = 'diagnosticProvider',
+  ['textDocument/didChange'] = 'textDocumentSync',
+  ['textDocument/didClose'] = 'textDocumentSync',
+  ['textDocument/didOpen'] = 'textDocumentSync',
+  ['textDocument/didSave'] = 'textDocumentSync',
+  ['textDocument/documentColor'] = 'colorProvider',
+  ['textDocument/documentHighlight'] = 'documentHighlightProvider',
+  ['textDocument/documentLink'] = 'documentLinkProvider',
+  ['textDocument/documentSymbol'] = 'documentSymbolProvider',
+  ['textDocument/foldingRange'] = 'foldingRangeProvider',
+  ['textDocument/formatting'] = 'documentFormattingProvider',
+  ['textDocument/hover'] = 'hoverProvider',
+  ['textDocument/implementation'] = 'implementationProvider',
+  ['textDocument/inlayHint'] = 'inlayHintProvider',
+  ['textDocument/inlineCompletion'] = 'inlineCompletionProvider',
+  ['textDocument/inlineValue'] = 'inlineValueProvider',
+  ['textDocument/linkedEditingRange'] = 'linkedEditingRangeProvider',
+  ['textDocument/moniker'] = 'monikerProvider',
+  ['textDocument/onTypeFormatting'] = 'documentOnTypeFormattingProvider',
+  ['textDocument/prepareCallHierarchy'] = 'callHierarchyProvider',
+  ['textDocument/prepareRename'] = 'renameProvider',
+  ['textDocument/prepareTypeHierarchy'] = 'typeHierarchyProvider',
+  ['textDocument/publishDiagnostics'] = 'textDocument/publishDiagnostics',
+  ['textDocument/rangeFormatting'] = 'documentRangeFormattingProvider',
+  ['textDocument/rangesFormatting'] = 'documentRangeFormattingProvider',
+  ['textDocument/references'] = 'referencesProvider',
+  ['textDocument/rename'] = 'renameProvider',
+  ['textDocument/selectionRange'] = 'selectionRangeProvider',
+  ['textDocument/semanticTokens/full'] = 'semanticTokensProvider',
+  ['textDocument/semanticTokens/full/delta'] = 'semanticTokensProvider',
+  ['textDocument/semanticTokens/range'] = 'semanticTokensProvider',
+  ['textDocument/signatureHelp'] = 'signatureHelpProvider',
+  ['textDocument/typeDefinition'] = 'typeDefinitionProvider',
+  ['textDocument/willSave'] = 'textDocumentSync',
+  ['textDocument/willSaveWaitUntil'] = 'textDocumentSync',
+  ['typeHierarchy/subtypes'] = 'typeHierarchy/subtypes',
+  ['typeHierarchy/supertypes'] = 'typeHierarchy/supertypes',
+  ['window/logMessage'] = 'window/logMessage',
+  ['window/showDocument'] = 'window/showDocument',
+  ['window/showMessage'] = 'window/showMessage',
+  ['window/showMessageRequest'] = 'window/showMessageRequest',
+  ['window/workDoneProgress/cancel'] = 'window/workDoneProgress/cancel',
+  ['window/workDoneProgress/create'] = 'window/workDoneProgress/create',
+  ['workspaceSymbol/resolve'] = 'workspaceSymbolProvider',
+  ['workspace/applyEdit'] = 'workspace/applyEdit',
+  ['workspace/codeLens/refresh'] = 'workspace/codeLens/refresh',
+  ['workspace/configuration'] = 'workspace/configuration',
+  ['workspace/diagnostic'] = 'diagnosticProvider',
+  ['workspace/diagnostic/refresh'] = 'workspace/diagnostic/refresh',
+  ['workspace/didChangeConfiguration'] = 'workspace/didChangeConfiguration',
+  ['workspace/didChangeWatchedFiles'] = 'workspace/didChangeWatchedFiles',
+  ['workspace/didChangeWorkspaceFolders'] = 'workspace.workspaceFolders.changeNotifications',
+  ['workspace/didCreateFiles'] = 'workspace.fileOperations.didCreate',
+  ['workspace/didDeleteFiles'] = 'workspace.fileOperations.didDelete',
+  ['workspace/didRenameFiles'] = 'workspace.fileOperations.didRename',
+  ['workspace/executeCommand'] = 'executeCommandProvider',
+  ['workspace/foldingRange/refresh'] = 'workspace/foldingRange/refresh',
+  ['workspace/inlayHint/refresh'] = 'workspace/inlayHint/refresh',
+  ['workspace/inlineValue/refresh'] = 'workspace/inlineValue/refresh',
+  ['workspace/semanticTokens/refresh'] = 'workspace/semanticTokens/refresh',
+  ['workspace/symbol'] = 'workspaceSymbolProvider',
+  ['workspace/textDocumentContent'] = 'workspace.textDocumentContent',
+  ['workspace/textDocumentContent/refresh'] = 'workspace/textDocumentContent/refresh',
+  ['workspace/willCreateFiles'] = 'workspace.fileOperations.willCreate',
+  ['workspace/willDeleteFiles'] = 'workspace.fileOperations.willDelete',
+  ['workspace/willRenameFiles'] = 'workspace.fileOperations.willRename',
+  ['workspace/workspaceFolders'] = 'workspace.workspaceFolders',
 }
 -- stylua: ignore end
 
@@ -1391,39 +1513,25 @@ protocol._method_supports_dynamic_registration = {
 -- stylua: ignore start
 -- Generated by gen_lsp.lua, keep at end of file.
 protocol._method_supports_static_registration = {
-  ['textDocument/codeAction'] = true,
-  ['textDocument/codeLens'] = true,
+  ['callHierarchy/incomingCalls'] = true,
+  ['callHierarchy/outgoingCalls'] = true,
   ['textDocument/colorPresentation'] = true,
-  ['textDocument/completion'] = true,
   ['textDocument/declaration'] = true,
-  ['textDocument/definition'] = true,
   ['textDocument/diagnostic'] = true,
-  ['textDocument/didChange'] = true,
   ['textDocument/documentColor'] = true,
-  ['textDocument/documentHighlight'] = true,
-  ['textDocument/documentLink'] = true,
-  ['textDocument/documentSymbol'] = true,
   ['textDocument/foldingRange'] = true,
-  ['textDocument/formatting'] = true,
-  ['textDocument/hover'] = true,
   ['textDocument/implementation'] = true,
   ['textDocument/inlayHint'] = true,
   ['textDocument/inlineCompletion'] = true,
   ['textDocument/inlineValue'] = true,
   ['textDocument/linkedEditingRange'] = true,
-  ['textDocument/moniker'] = true,
-  ['textDocument/onTypeFormatting'] = true,
   ['textDocument/prepareCallHierarchy'] = true,
   ['textDocument/prepareTypeHierarchy'] = true,
-  ['textDocument/rangeFormatting'] = true,
-  ['textDocument/references'] = true,
-  ['textDocument/rename'] = true,
   ['textDocument/selectionRange'] = true,
   ['textDocument/semanticTokens/full'] = true,
-  ['textDocument/signatureHelp'] = true,
+  ['textDocument/semanticTokens/full/delta'] = true,
   ['textDocument/typeDefinition'] = true,
-  ['workspace/executeCommand'] = true,
-  ['workspace/symbol'] = true,
+  ['workspace/textDocumentContent'] = true,
 }
 -- stylua: ignore end
 

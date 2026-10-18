@@ -64,7 +64,7 @@ static bool pending_mode_update = false;
 static handle_T cursor_grid_handle = DEFAULT_GRID_HANDLE;
 
 static PMap(uint32_t) ui_event_cbs = MAP_INIT;
-bool ui_cb_ext[kUIExtCount];  ///< Internalized UI capabilities.
+static bool ui_cb_ext[kUIExtCount];  ///< Internalized UI capabilities.
 
 static bool has_mouse = false;
 static int pending_has_mouse = -1;
@@ -220,7 +220,7 @@ void ui_refresh(void)
   // Reset 'cmdheight' for all tabpages when ext_messages toggles.
   if (had_message != ui_ext[kUIMessages]) {
     if (ui_refresh_cmdheight) {
-      set_option_value(kOptCmdheight, NUMBER_OPTVAL(had_message), 0);
+      set_option_value(kOptCmdheight, INTEGER_OBJ(had_message), 0, true, NULL);
       FOR_ALL_TABS(tp) {
         tp->tp_ch_used = had_message;
       }
@@ -327,11 +327,11 @@ void ui_busy_stop(void)
 /// val is one of the OptBoFlags values, e.g., kOptBoFlagOperator
 void vim_beep(unsigned val)
 {
-  called_vim_beep = true;
-
   if (emsg_silent != 0 || in_assert_fails) {
+    did_beep_silent++;
     return;
   }
+  did_beep++;
 
   if (!((bo_flags & val) || (bo_flags & kOptBoFlagAll))) {
     static int beeps = 0;
@@ -617,15 +617,15 @@ void ui_check_mouse(void)
     return;
   }
 
-  int checkfor = MOUSE_NORMAL;  // assume normal mode
-  if (VIsual_active) {
-    checkfor = MOUSE_VISUAL;
+  int checkfor = kMouseNormal;  // assume normal mode
+  if (Visual.active) {
+    checkfor = kMouseVisual;
   } else if (State == MODE_HITRETURN || State == MODE_ASKMORE || State == MODE_SETWSIZE) {
-    checkfor = MOUSE_RETURN;
+    checkfor = kMouseReturn;
   } else if (State & MODE_INSERT) {
-    checkfor = MOUSE_INSERT;
+    checkfor = kMouseInsert;
   } else if (State & MODE_CMDLINE) {
-    checkfor = MOUSE_COMMAND;
+    checkfor = kMouseCommand;
   } else if (State == MODE_EXTERNCMD) {
     checkfor = ' ';  // don't use mouse for ":!cmd"
   }
@@ -652,8 +652,8 @@ bool ui_mouse_has(int mode)
       }
 
       break;
-    case MOUSE_HELP:
-      if (mode != MOUSE_RETURN && curbuf->b_help) {
+    case kMouseHelp:
+      if (mode != kMouseReturn && curbuf->b_help) {
         return true;
       }
 
@@ -697,7 +697,8 @@ void ui_cursor_shape(void)
 }
 
 /// Check if the cursor is behind a floating window (only in compositor mode).
-/// @return true if cursor is obscured by a float with higher zindex
+/// @return true if cursor is obscured by a float (when its zindex exceeds the
+/// zindex of the current window by 50).
 static bool ui_cursor_is_behind_floatwin(void)
 {
   if ((State & MODE_CMDLINE) || !ui_comp_should_draw()) {
@@ -709,7 +710,9 @@ static bool ui_cursor_is_behind_floatwin(void)
              + (curwin->w_p_rl ? curwin->w_view_width - curwin->w_wcol - 1 : curwin->w_wcol);
 
   ScreenGrid *top_grid = ui_comp_get_grid_at_coord(crow, ccol);
-  return top_grid != &curwin->w_grid_alloc && top_grid != &default_grid;
+  return top_grid != &curwin->w_grid_alloc
+         && top_grid != &default_grid
+         && top_grid->zindex >= curwin->w_grid_alloc.zindex + 50;
 }
 
 /// Returns true if the given UI extension is enabled.
@@ -786,28 +789,6 @@ static void ui_attach_error(uint32_t ns_id, const char *name, const char *msg)
 
 void ui_call_event(char *name, Array args)
 {
-  // Internal messages are considered unsafe and are executed in fast context.
-  bool fast = strcmp(name, "msg_show") == 0;
-  const char *not_fast[] = {
-    "empty",
-    "echo",
-    "echomsg",
-    "echoerr",
-    "list_cmd",
-    "lua_error",
-    "lua_print",
-    "progress",
-    "shell_cmd",
-    "shell_err",
-    "shell_out",
-    "shell_ret",
-    NULL,
-  };
-
-  for (int i = 0; fast && not_fast[i]; i++) {
-    fast = !strequal(not_fast[i], args.items[0].data.string.data);
-  }
-
   // Don't impose textlock restrictions upon UI event handlers.
   int save_expr_map_lock = expr_map_lock;
   int save_textlock = textlock;
@@ -815,6 +796,7 @@ void ui_call_event(char *name, Array args)
   textlock = 0;
 
   bool handled = false;
+  bool fast = msg_ext_fast && strcmp("msg_show", name) == 0;
   UIEventCallback *event_cb;
   map_foreach(&ui_event_cbs, ui_event_ns_id, event_cb, {
     Error err = ERROR_INIT;

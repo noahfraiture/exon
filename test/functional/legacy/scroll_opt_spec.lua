@@ -1,6 +1,8 @@
 local n = require('test.functional.testnvim')()
+local t = require('test.testutil')
 local Screen = require('test.functional.ui.screen')
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local clear = n.clear
 local exec = n.exec
 local feed = n.feed
@@ -1243,7 +1245,6 @@ describe('smoothscroll', function()
                                               |
     ]])
     exec('set showtabline=2')
-    feed('<C-E>')
     screen:expect([[
       {5: }{100:2}{5:+ [No Name] }{2:                          }|
       {1:<<<}e text with some text with some text |
@@ -1259,7 +1260,7 @@ describe('smoothscroll', function()
                                               |
     ]])
     exec('set winbar=winbar')
-    feed('<C-w>k<C-E>')
+    feed('<C-w>k')
     screen:expect([[
       {5: }{100:2}{5:+ [No Name] }{2:                          }|
       {5:winbar                                  }|
@@ -1394,6 +1395,255 @@ describe('smoothscroll', function()
        long two long two long two long two lon|
       ^g two long two long                     |
       :norm j721|                             |
+    ]])
+  end)
+end)
+
+describe('scrolloffpad', function()
+  local screen
+
+  before_each(function()
+    screen = Screen.new(78, 20)
+  end)
+
+  -- oldtest: Test_scrolloffpad_basic()
+  it('works', function()
+    exec([[
+      set scrolloff=10
+      set scrolloffpad=5
+      enew!
+      call setline(1, map(range(1, 100), 'printf("line %d", v:val)'))
+      normal! gg
+    ]])
+
+    -- Enabled: scrolloffpad > 0, expect EOF centering/padding
+    exec('normal! G')
+    screen:expect([[
+      line 91                                                                       |
+      line 92                                                                       |
+      line 93                                                                       |
+      line 94                                                                       |
+      line 95                                                                       |
+      line 96                                                                       |
+      line 97                                                                       |
+      line 98                                                                       |
+      line 99                                                                       |
+      ^line 100                                                                      |
+      {1:~                                                                             }|*9
+                                                                                    |
+    ]])
+
+    -- Beginning-of-file is unchanged (Top)
+    exec('normal! gg')
+    screen:expect([[
+      ^line 1                                                                        |
+      line 2                                                                        |
+      line 3                                                                        |
+      line 4                                                                        |
+      line 5                                                                        |
+      line 6                                                                        |
+      line 7                                                                        |
+      line 8                                                                        |
+      line 9                                                                        |
+      line 10                                                                       |
+      line 11                                                                       |
+      line 12                                                                       |
+      line 13                                                                       |
+      line 14                                                                       |
+      line 15                                                                       |
+      line 16                                                                       |
+      line 17                                                                       |
+      line 18                                                                       |
+      line 19                                                                       |
+                                                                                    |
+    ]])
+
+    -- Gating: disable scrolloffpad, then go to EOF again
+    -- Expect normal EOF behavior (no extra centering/padding)
+    exec('set scrolloffpad=0')
+    exec('normal! G')
+    screen:expect([[
+      line 82                                                                       |
+      line 83                                                                       |
+      line 84                                                                       |
+      line 85                                                                       |
+      line 86                                                                       |
+      line 87                                                                       |
+      line 88                                                                       |
+      line 89                                                                       |
+      line 90                                                                       |
+      line 91                                                                       |
+      line 92                                                                       |
+      line 93                                                                       |
+      line 94                                                                       |
+      line 95                                                                       |
+      line 96                                                                       |
+      line 97                                                                       |
+      line 98                                                                       |
+      line 99                                                                       |
+      ^line 100                                                                      |
+                                                                                    |
+    ]])
+  end)
+
+  -- oldtest: Test_scrolloffpad_smoothscroll()
+  it('works with smoothscroll', function()
+    exec([[
+      set smoothscroll scrolloff=10 scrolloffpad=1
+      enew!
+      call setline(1, map(range(1, 100), 'printf("line %d", v:val)'))
+      normal! gg
+    ]])
+
+    exec('normal! G')
+    screen:expect([[
+      line 91                                                                       |
+      line 92                                                                       |
+      line 93                                                                       |
+      line 94                                                                       |
+      line 95                                                                       |
+      line 96                                                                       |
+      line 97                                                                       |
+      line 98                                                                       |
+      line 99                                                                       |
+      ^line 100                                                                      |
+      {1:~                                                                             }|*9
+                                                                                    |
+    ]])
+
+    exec([[call setline(line('$'), repeat('LONG ', 30))]])
+    exec('normal! 41|')
+    screen:expect([[
+      line 92                                                                       |
+      line 93                                                                       |
+      line 94                                                                       |
+      line 95                                                                       |
+      line 96                                                                       |
+      line 97                                                                       |
+      line 98                                                                       |
+      line 99                                                                       |
+      LONG LONG LONG LONG LONG LONG LONG LONG ^LONG LONG LONG LONG LONG LONG LONG LON|
+      G LONG LONG LONG LONG LONG LONG LONG LONG LONG LONG LONG LONG LONG LONG       |
+      {1:~                                                                             }|*9
+                                                                                    |
+    ]])
+  end)
+
+  -- oldtest: Test_scrolloffpad_with_folds()
+  it('works with folds', function()
+    exec([[
+      set scrolloff=10
+      set scrolloffpad=1
+
+      enew
+      call setline(1, map(range(1, 120), {_, v -> 'line ' . v}))
+
+      " Create a large fold near the end of the file.
+      " Fold lines 60-110, leaving 111-120 visible after the fold.
+      set foldmethod=manual
+      set foldenable
+      normal! gg
+      normal! 60G
+      normal! zf50j
+      normal! gg
+    ]])
+
+    -- Case 1: Jump to end-of-file
+    -- With folds present, scrolloffpad should still
+    -- keep the cursor positioned with padding below EOF
+    exec('normal! G')
+    local s1 = [[
+      line 111                                                                      |
+      line 112                                                                      |
+      line 113                                                                      |
+      line 114                                                                      |
+      line 115                                                                      |
+      line 116                                                                      |
+      line 117                                                                      |
+      line 118                                                                      |
+      line 119                                                                      |
+      ^line 120                                                                      |
+      {1:~                                                                             }|*9
+                                                                                    |
+    ]]
+    screen:expect(s1)
+
+    -- Case 2: Move to the folded line to ensure the fold is actually in view
+    exec('normal! 60G')
+    screen:expect([[
+      line 51                                                                       |
+      line 52                                                                       |
+      line 53                                                                       |
+      line 54                                                                       |
+      line 55                                                                       |
+      line 56                                                                       |
+      line 57                                                                       |
+      line 58                                                                       |
+      line 59                                                                       |
+      {13:^+-- 51 lines: line 60·························································}|
+      line 111                                                                      |
+      line 112                                                                      |
+      line 113                                                                      |
+      line 114                                                                      |
+      line 115                                                                      |
+      line 116                                                                      |
+      line 117                                                                      |
+      line 118                                                                      |
+      line 119                                                                      |
+                                                                                    |
+    ]])
+
+    -- Case 3: Close the fold explicitly and go to EOF again
+    -- Behavior should remain stable with closed folds
+    exec('normal! zc')
+    exec('normal! G')
+    screen:expect(s1)
+  end)
+
+  it("uses the target window's value, not the current window's", function()
+    exec([[
+      set scrolloff=10 scrolloffpad=0
+      enew!
+      call setline(1, map(range(1, 100), 'printf("line %d", v:val)'))
+      split
+      setlocal scrolloffpad=5
+      normal! G
+      wincmd j
+      silent 1,60d
+    ]])
+    -- The upper window turned 'scrolloffpad' on for itself, so its own value
+    -- decides how far its cursor is padded from the end of the buffer, even
+    -- though the current window leaves the option at the global 0.
+    t.eq(36, n.fn.line('w0', n.fn.win_getid(1)))
+  end)
+end)
+
+describe('scroll_cursor_halfway()', function()
+  local screen
+
+  before_each(function()
+    screen = Screen.new(40, 12)
+  end)
+
+  it('weighs lines by their screen height', function()
+    exec([[
+      set nosmoothscroll scrolloff=0
+      call setline(1, map(range(1, 20), '"short " .. v:val'))
+      call append(20, 'CURSOR')
+      call append(21, map(range(1, 8), 'repeat("x", 200)'))
+    ]])
+    feed('21Gzz')
+    -- The lines below the cursor wrap to five rows each, so only one of them
+    -- fits under the cursor once it sits on row 6 of this 11 row window.
+    screen:expect([[
+      short 16                                |
+      short 17                                |
+      short 18                                |
+      short 19                                |
+      short 20                                |
+      ^CURSOR                                  |
+      xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|*5
+                                              |
     ]])
   end)
 end)

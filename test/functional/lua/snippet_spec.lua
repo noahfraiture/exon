@@ -3,6 +3,7 @@
 local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local buf_lines = n.buf_lines
 local clear = n.clear
 local eq = t.eq
@@ -104,7 +105,14 @@ describe('vim.snippet', function()
   end)
 
   it('inserts known variable value', function()
-    test_expand_success({ '; print($TM_CURRENT_LINE)' }, { 'foo; print(foo)' }, nil, 'foo')
+    local dir = fn.getcwd()
+    api.nvim_buf_set_name(0, dir .. '/Xsnippet.lua')
+    test_expand_success(
+      { '; print($TM_CURRENT_LINE, $TM_DIRECTORY)' },
+      { 'foo; print(foo, ' .. dir .. ')' },
+      nil,
+      'foo'
+    )
   end)
 
   it('uses default when variable is not set', function()
@@ -280,7 +288,7 @@ describe('vim.snippet', function()
     eq(false, exec_lua('return vim.snippet.active()'))
     eq(0, #api.nvim_buf_get_extmarks(0, ns, 0, -1, {}))
 
-    api.nvim_buf_set_lines(0, 0, -1, false, {})
+    feed('dal')
     test_expand_success({ 'local $1 = ${2:value}' }, { 'local  = value' })
     eq('i', fn.mode())
     eq(true, exec_lua('return vim.snippet.active()'))
@@ -424,5 +432,19 @@ describe('vim.snippet', function()
     test_expand_success({ 'function(${1:var})' }, { '口口function(var)' }, nil, '口口')
     feed('foo')
     eq({ '口口function(foo)' }, buf_lines(0))
+  end)
+
+  it('supports multiple snippet sessions', function()
+    test_expand_success({ 'func $1($3) {', '  $2', '}' }, { 'func () {', '  ', '}' })
+
+    feed('foo<Tab>')
+
+    test_expand_success({ 'var x = $1 + $2' }, { 'func foo() {', '  var x =  + ', '}' })
+
+    feed('a<Tab>b')
+
+    feed('<Tab><Tab>a, b')
+
+    eq({ 'func foo(a, b) {', '  var x = a + b', '}' }, buf_lines(0))
   end)
 end)

@@ -22,6 +22,7 @@
 #include "nvim/buffer_defs.h"
 #include "nvim/buffer_updates.h"
 #include "nvim/change.h"
+#include "nvim/context.h"
 #include "nvim/cursor.h"
 #include "nvim/ex_cmds.h"
 #include "nvim/extmark.h"
@@ -126,8 +127,8 @@ Integer nvim_buf_line_count(Buffer buf, Error *err)
 ///        Not for Lua callbacks.
 /// @param  opts  Optional parameters.
 ///             - on_bytes: Called on granular changes (compared to on_lines). Not called on buffer
-///               reload (`:checktime`, `:edit`, …), see `on_reload:`. Return a [lua-truthy] value
-///               to detach. Args:
+///               reload (`:checktime`, `:edit`, …), see `on_reload`. Returning [lua-truthy] deletes
+///               the callback. Args:
 ///               - the string "bytes"
 ///               - buffer id
 ///               - b:changedtick
@@ -147,11 +148,12 @@ Integer nvim_buf_line_count(Buffer buf, Error *err)
 ///               - the string "changedtick"
 ///               - buffer id
 ///               - b:changedtick
-///             - on_detach: Called on detach. Args:
+///             - on_detach: Called on detach, or when the buffer is unloaded or deleted. Not called
+///               when a callback returns [lua-truthy] to delete itself. Args:
 ///               - the string "detach"
 ///               - buffer id
 ///             - on_lines: Called on linewise changes. Not called on buffer reload (`:checktime`,
-///               `:edit`, …), see `on_reload:`. Return a [lua-truthy] value to detach. Args:
+///               `:edit`, …), see `on_reload`. Returning [lua-truthy] deletes the callback. Args:
 ///               - the string "lines"
 ///               - buffer id
 ///               - b:changedtick
@@ -278,6 +280,7 @@ ArrayOf(String) nvim_buf_get_lines(uint64_t channel_id,
 
   // return sentinel value if the buffer isn't loaded
   if (b->b_ml.ml_mfp == NULL) {
+    init_line_array(lstate, &rv, 0, arena);
     return rv;
   }
 
@@ -289,12 +292,7 @@ ArrayOf(String) nvim_buf_get_lines(uint64_t channel_id,
     return rv;
   });
 
-  if (start >= end) {
-    // Return 0-length array
-    return rv;
-  }
-
-  size_t size = (size_t)(end - start);
+  size_t size = end >= start ? (size_t)(end - start) : 0;
 
   init_line_array(lstate, &rv, size, arena);
 
@@ -329,7 +327,7 @@ void nvim_buf_set_lines(uint64_t channel_id, Buffer buf, Integer start, Integer 
                         Boolean strict_indexing, ArrayOf(String) replacement, Arena *arena,
                         Error *err)
   FUNC_API_SINCE(1)
-  FUNC_API_TEXTLOCK_ALLOW_CMDWIN
+  FUNC_API_TEXTLOCK
 {
   buf_T *b = api_buf_ensure_loaded(buf, err);
 
@@ -439,9 +437,9 @@ void nvim_buf_set_lines(uint64_t channel_id, Buffer buf, Integer start, Integer 
     mark_adjust_buf(b, (linenr_T)start, (linenr_T)(end - 1), adjust, (linenr_T)extra,
                     true, kMarkAdjustApi, kExtmarkNOOP);
 
-    if (VIsual_active && b == curbuf && VIsual.lnum >= (linenr_T)start) {
-      if (VIsual.lnum >= (linenr_T)end) {
-        VIsual.lnum += (linenr_T)extra;
+    if (Visual.active && b == curbuf && Visual.start.lnum >= (linenr_T)start) {
+      if (Visual.start.lnum >= (linenr_T)end) {
+        Visual.start.lnum += (linenr_T)extra;
       }
       check_visual_pos();
     }
@@ -489,7 +487,7 @@ void nvim_buf_set_text(uint64_t channel_id, Buffer buf, Integer start_row, Integ
                        Integer end_row, Integer end_col, ArrayOf(String) replacement, Arena *arena,
                        Error *err)
   FUNC_API_SINCE(7)
-  FUNC_API_TEXTLOCK_ALLOW_CMDWIN
+  FUNC_API_TEXTLOCK
 {
   MAXSIZE_TEMP_ARRAY(scratch, 1);
   if (replacement.size == 0) {
@@ -673,8 +671,8 @@ void nvim_buf_set_text(uint64_t channel_id, Buffer buf, Integer start_row, Integ
     mark_adjust_buf(b, (linenr_T)start_row, (linenr_T)end_row - 1, adjust, (linenr_T)extra,
                     true, kMarkAdjustApi, kExtmarkNOOP);
 
-    if (VIsual_active && b == curbuf && VIsual_mode != Ctrl_V) {
-      fix_pos_col(b, &VIsual, (linenr_T)start_row, (colnr_T)start_col, (linenr_T)end_row,
+    if (Visual.active && b == curbuf && Visual.mode != Ctrl_V) {
+      fix_pos_col(b, &Visual.start, (linenr_T)start_row, (colnr_T)start_col, (linenr_T)end_row,
                   (colnr_T)end_col, (linenr_T)new_len, (colnr_T)last_item.size, 1);
       check_visual_pos();
     }
@@ -734,6 +732,7 @@ ArrayOf(String) nvim_buf_get_text(uint64_t channel_id, Buffer buf,
 
   // return sentinel value if the buffer isn't loaded
   if (b->b_ml.ml_mfp == NULL) {
+    init_line_array(lstate, &rv, 0, arena);
     return rv;
   }
 
@@ -892,19 +891,25 @@ void nvim_buf_set_keymap(uint64_t channel_id, Buffer buf, String mode, String lh
                          Dict(keymap) *opts, Error *err)
   FUNC_API_SINCE(6)
 {
-  modify_keymap(channel_id, buf, false, mode, lhs, rhs, opts, err);
+  modify_keymap(channel_id, buf, MAPTYPE_MAP, mode, lhs, rhs, opts, err);
 }
 
 /// Unmaps a buffer-local |mapping| for the given mode.
 ///
 /// @see |nvim_del_keymap()|
 ///
-/// @param  buf  Buffer id, or 0 for current buffer
-void nvim_buf_del_keymap(uint64_t channel_id, Buffer buf, String mode, String lhs, Error *err)
+/// @param  buf   Buffer id, or 0 for current buffer
+/// @param  mode  Mode short-name ("n", "i", "v", ...)
+/// @param  lhs   Left-hand-side |{lhs}| of the mapping.
+/// @param  opts  Optional parameters.
+///               - lhs: When true, only match {lhs}, not {rhs}.
+void nvim_buf_del_keymap(uint64_t channel_id, Buffer buf, String mode, String lhs,
+                         Dict(keymap_del) *opts, Error *err)
   FUNC_API_SINCE(6)
 {
   String rhs = { .data = "", .size = 0 };
-  modify_keymap(channel_id, buf, true, mode, lhs, rhs, NULL, err);
+  int maptype = opts && opts->lhs ? MAPTYPE_UNMAP_LHS : MAPTYPE_UNMAP;
+  modify_keymap(channel_id, buf, maptype, mode, lhs, rhs, NULL, err);
 }
 
 /// Sets a buffer-scoped (b:) variable
@@ -942,7 +947,10 @@ void nvim_buf_del_var(Buffer buf, String name, Error *err)
   dict_set_var(b->b_vars, name, NIL, true, false, NULL, err);
 }
 
-/// Gets the full file name for the buffer
+/// Gets the full/absolute filepath of the buffer, or the buffer name for non-file buffers.
+///
+/// If the buffer represents a directory, the name ends with a path separator,
+/// unless it was changed by |:file| or |nvim_buf_set_name()|.
 ///
 /// @param buf     Buffer id, or 0 for current buffer
 /// @param[out] err   Error details, if any
@@ -984,11 +992,11 @@ void nvim_buf_set_name(Buffer buf, String name, Error *err)
       p_acd = false;
     }
 
-    // Using aucmd_*: autocommands will be executed by rename_buffer
-    aco_save_T aco;
-    aucmd_prepbuf(&aco, b);
+    // Switch context to `b`: autocommands will be executed by rename_buffer
+    CtxSwitch aco = { 0 };
+    ctx_switch(&aco, NULL, NULL, b, 0);
     ren_ret = rename_buffer(name.data);
-    aucmd_restbuf(&aco);
+    ctx_restore(&aco);
 
     if (!is_curbuf) {
       RedrawingDisabled--;
@@ -1197,7 +1205,8 @@ ArrayOf(Integer, 2) nvim_buf_get_mark(Buffer buf, String name, Arena *arena, Err
   return rv;
 }
 
-/// Call a function with buffer as temporary current buffer.
+/// Calls function `fn` in the context of buffer `buf` and returns its result (may be multiple
+/// values).
 ///
 /// This temporarily switches current buffer to `buf`.
 /// If the current window already shows `buf`, the window is not switched.
@@ -1209,12 +1218,11 @@ ArrayOf(Integer, 2) nvim_buf_get_mark(Buffer buf, String name, Arena *arena, Err
 /// This is useful e.g. to call Vimscript functions that only work with the
 /// current buffer/window currently, like `jobstart(…, {'term': v:true})`.
 ///
-/// @param buf     Buffer id, or 0 for current buffer
-/// @param fun        Function to call inside the buffer (currently Lua callable
-///                   only)
-/// @param[out] err   Error details, if any
-/// @return           Return value of function.
-Object nvim_buf_call(Buffer buf, LuaRef fun, Error *err)
+/// @param buf  Buffer id, or 0 for current buffer.
+/// @param fn   Lua function to call inside the buffer.
+/// @param err  Error details, if any.
+/// @return     Value(s) returned by `fn()`.
+Object nvim_buf_call(Buffer buf, LuaRef fn, lua_State *lstate, Error *err)
   FUNC_API_SINCE(7)
   FUNC_API_LUA_ONLY
 {
@@ -1223,18 +1231,17 @@ Object nvim_buf_call(Buffer buf, LuaRef fun, Error *err)
     return NIL;
   }
 
-  Object res = OBJECT_INIT;
   TRY_WRAP(err, {
-    aco_save_T aco;
-    aucmd_prepbuf(&aco, b);
+    CtxSwitch cs = { 0 };
+    ctx_switch(&cs, NULL, NULL, b, 0);
 
     Array args = ARRAY_DICT_INIT;
-    res = nlua_call_ref(fun, NULL, args, kRetLuaref, NULL, err);
+    nlua_call_ref(fn, NULL, args, kRetMultiStack, NULL, err);
 
-    aucmd_restbuf(&aco);
+    ctx_restore(&cs);
   });
 
-  return res;
+  return NIL;  // kRetMultiStack: values are already on the lua stack
 }
 
 /// @nodoc

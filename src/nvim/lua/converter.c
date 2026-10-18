@@ -731,7 +731,7 @@ void nlua_push_Array(lua_State *lstate, const Array array, int flags)
 void nlua_push_handle(lua_State *lstate, const handle_T item, int flags)
   FUNC_ATTR_NONNULL_ALL
 {
-  lua_pushnumber(lstate, (lua_Number)(item));
+  lua_pushnumber(lstate, (lua_Number)item);
 }
 
 /// Convert given Object to Lua value
@@ -741,6 +741,7 @@ void nlua_push_Object(lua_State *lstate, Object *obj, int flags)
   FUNC_ATTR_NONNULL_ALL
 {
   switch (obj->type) {
+  case kObjectTypeUnset:
   case kObjectTypeNil:
     if (flags & kNluaPushSpecial) {
       lua_pushnil(lstate);
@@ -974,7 +975,7 @@ Array nlua_pop_Array(lua_State *lstate, Arena *arena, Error *err)
 
 /// Convert Lua table to dictionary
 ///
-/// Always pops one value from the stack. Does not check whether whether topmost
+/// Always pops one value from the stack. Does not check whether topmost
 /// value on the stack is a table.
 ///
 /// @param  lstate  Lua interpreter state.
@@ -1295,7 +1296,7 @@ void nlua_pop_keydict(lua_State *L, void *retval, FieldHashfn hashy, char **err_
     // [dict, key, value]
     size_t len;
     const char *s = lua_tolstring(L, -2, &len);
-    KeySetLink *field = hashy(s, len);
+    const KeySetLink *field = hashy(s, len);
     if (!field) {
       api_set_error(err, kErrorTypeValidation, "invalid key: %.*s", (int)len, s);
       lua_pop(L, 3);  // []

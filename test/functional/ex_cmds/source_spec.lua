@@ -1,6 +1,7 @@
 local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 
+local describe, it, before_each, finally = t.describe, t.it, t.before_each, t.finally
 local command = n.command
 local insert = n.insert
 local eq = t.eq
@@ -326,14 +327,13 @@ describe(':source', function()
 end)
 
 it('$HOME is not shortened in filepath in v:stacktrace from sourced file', function()
-  local sep = n.get_pathsep()
-  local xhome = table.concat({ vim.uv.cwd(), 'Xhome' }, sep)
+  local xhome = t.fix_slashes(assert(vim.uv.cwd())) .. '/Xhome'
   mkdir(xhome)
   clear({ env = { HOME = xhome } })
   finally(function()
     rmdir(xhome)
   end)
-  local filepath = table.concat({ xhome, 'Xstacktrace.vim' }, sep)
+  local filepath = xhome .. '/Xstacktrace.vim'
   local script = [[
     func Xfunc()
       throw 'Exception from Xfunc'

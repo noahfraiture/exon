@@ -61,7 +61,11 @@ vim.api.nvim_create_autocmd('BufReadCmd', {
           end
 
           if archive_kind == 'zip' then
-            vim.fn['zip#Browse'](tmpfile)
+            if vim.fn.exists('#zip') == 1 then
+              vim.fn['zip#Browse'](tmpfile)
+            elseif vim.fn.exists('#nvim.zip') == 1 then
+              require('nvim.zip').browse(ev.buf, tmpfile)
+            end
           else
             vim.fn['tar#Browse'](tmpfile)
           end
@@ -83,7 +87,7 @@ vim.api.nvim_create_autocmd('BufReadCmd', {
           return
         end
 
-        vim.api.nvim_exec_autocmds('BufRead', { group = 'filetypedetect', buffer = ev.buf })
+        vim.api.nvim_exec_autocmds('BufRead', { group = 'filetypedetect', buf = ev.buf })
         vim.bo[ev.buf].modified = false
         vim.bo[ev.buf].buftype = 'nofile'
         vim.notify(('Loaded %s'):format(url), vim.log.levels.INFO)

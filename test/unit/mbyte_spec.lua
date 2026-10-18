@@ -1,5 +1,6 @@
 local t = require('test.unit.testutil')
-local itp = t.gen_itp(it)
+local describe, before_each = t.describe, t.before_each
+local itp = t.gen_itp(t.it)
 
 local ffi = t.ffi
 local eq = t.eq
@@ -292,6 +293,43 @@ describe('mbyte', function()
     end)
   end)
 
+  describe('utf_ptr2cells', function()
+    local function check(str, expected)
+      -- TODO: rework a better test structure for the new world
+      -- of bounded and unbounded CharInfo iterators
+      eq(expected, lib.utf_ptr2cells(to_cstr(str)))
+      -- this a bit of a cop-out (string not cluster), but see above
+      eq(expected, lib.mb_string2cells_len(to_cstr(str), #str))
+    end
+
+    itp('gives a spacing mark its own cell', function()
+      check('ำ', 1)
+      check('ท', 1)
+      check('ทำ', 2)
+      check('का', 2)
+    end)
+
+    itp('gives the halfwidth katakana sound marks their own cell', function()
+      check('ｶ', 1)
+      check('ｶﾞ', 2)
+      check('ﾊﾟ', 2) -- U+FF9F, the semi-voiced mark
+    end)
+
+    itp('does not widen clusters of non-spacing marks', function()
+      check('ท่', 1)
+      check('é', 1) -- decomposed, so the acute joins the cluster
+    end)
+
+    itp('clamps to the maximum cells per cluster', function()
+      check('ทำำ', 2)
+    end)
+
+    itp('leaves double-width and illegal bytes alone', function()
+      check('漢', 2)
+      eq(4, lib.utf_ptr2cells(to_cstr('\xff'))) -- illegal byte, shown as <ff>
+    end)
+  end)
+
   itp('utf_head_off', function()
     local function check(str, expected_glyphs)
       local len = #str
@@ -311,9 +349,9 @@ describe('mbyte', function()
         pos = pos + clen
         table.insert(breaks, pos)
       end
-      eq(breaks[#breaks], len) -- include EOT as break
+      eq(len, breaks[#breaks]) -- include EOT as break
       -- we could also send in breaks, but this is more human readable
-      eq(mb_glyphs, expected_glyphs)
+      eq(expected_glyphs, mb_glyphs)
 
       for i = 1, #breaks - 1 do
         local start, next = breaks[i], breaks[i + 1]

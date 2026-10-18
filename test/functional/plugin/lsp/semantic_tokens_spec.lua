@@ -3,6 +3,7 @@ local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 local t_lsp = require('test.functional.plugin.lsp.testutil')
 
+local describe, it, before_each, after_each = t.describe, t.it, t.before_each, t.after_each
 local command = n.command
 local dedent = t.dedent
 local eq = t.eq
@@ -41,6 +42,18 @@ after_each(function()
 end)
 
 describe('semantic token highlighting', function()
+  local function eq_tokens(expected, actual)
+    eq(
+      vim.tbl_map(function(token)
+        return vim.tbl_extend('force', {
+          marked = true,
+          modifiers = {},
+        }, token)
+      end, expected),
+      actual
+    )
+  end
+
   local screen --- @type test.functional.ui.screen
   before_each(function()
     screen = Screen.new(40, 16)
@@ -180,8 +193,9 @@ describe('semantic token highlighting', function()
       exec_lua(function()
         local bufnr = vim.api.nvim_get_current_buf()
         vim.api.nvim_win_set_buf(0, bufnr)
+        vim.bo[bufnr].fileformat = 'unix'
         vim.bo[bufnr].filetype = 'some-filetype'
-        _G._start_server(_G.server2)
+        _G.test_client_id = _G._start_server(_G.server2)
       end)
 
       screen:expect {
@@ -196,6 +210,33 @@ describe('semantic token highlighting', function()
         {2:#else}                                   |
         {2:    printf("%d\n", x);}                  |
         {2:#endif}                                  |
+        }                                       |
+        ^}                                       |
+        {1:~                                       }|*3
+                                                |
+      ]],
+      }
+
+      -- The same token reaches four characters less far in a 'dos' buffer, because each
+      -- of the four line endings it spans takes two characters instead of one.
+      exec_lua(function()
+        vim.lsp.get_client_by_id(assert(_G.test_client_id)):stop()
+        vim.bo[vim.api.nvim_get_current_buf()].fileformat = 'dos'
+        _G._start_server(_G.server2)
+      end)
+
+      screen:expect {
+        grid = [[
+        #include <iostream>                     |
+                                                |
+        int main()                              |
+        {                                       |
+            int x;                              |
+        {2:#ifdef __cplusplus}                      |
+        {2:    std::cout << x << "\n";}             |
+        {2:#else}                                   |
+        {2:    printf("%d\n", x);}                  |
+        {2:#e}ndif                                  |
         }                                       |
         ^}                                       |
         {1:~                                       }|*3
@@ -449,14 +490,13 @@ describe('semantic token highlighting', function()
         end)
       )
 
-      eq(
+      eq_tokens(
         {
           {
             line = 2,
             end_line = 2,
             start_col = 4,
             end_col = 8,
-            marked = true,
             modifiers = {
               declaration = true,
               globalScope = true,
@@ -468,7 +508,6 @@ describe('semantic token highlighting', function()
             end_line = 4,
             start_col = 8,
             end_col = 9,
-            marked = true,
             modifiers = {
               declaration = true,
               functionScope = true,
@@ -480,7 +519,6 @@ describe('semantic token highlighting', function()
             end_line = 5,
             start_col = 7,
             end_col = 18,
-            marked = true,
             modifiers = {
               globalScope = true,
             },
@@ -491,8 +529,6 @@ describe('semantic token highlighting', function()
             end_line = 7,
             start_col = 0,
             end_col = 5,
-            marked = true,
-            modifiers = {},
             type = 'comment',
           },
           {
@@ -500,8 +536,6 @@ describe('semantic token highlighting', function()
             end_line = 8,
             start_col = 0,
             end_col = 22,
-            marked = true,
-            modifiers = {},
             type = 'comment',
           },
           {
@@ -509,8 +543,6 @@ describe('semantic token highlighting', function()
             end_line = 9,
             start_col = 0,
             end_col = 6,
-            marked = true,
-            modifiers = {},
             type = 'comment',
           },
         },
@@ -953,15 +985,14 @@ describe('semantic token highlighting', function()
           capabilities = {
             textDocumentSync = vim.lsp.protocol.TextDocumentSyncKind.Full,
             semanticTokensProvider = {
+              legend = vim.fn.json_decode(legend),
               full = { delta = false },
             },
           },
           handlers = {
-            --- @param callback function
             ['textDocument/semanticTokens/full'] = function(_, _, callback)
               callback(nil, nil)
             end,
-            --- @param callback function
             ['textDocument/semanticTokens/full/delta'] = function(_, _, callback)
               callback(nil, nil)
             end,
@@ -1005,6 +1036,7 @@ describe('semantic token highlighting', function()
           capabilities = {
             textDocumentSync = vim.lsp.protocol.TextDocumentSyncKind.Full,
             semanticTokensProvider = {
+              legend = vim.fn.json_decode(legend),
               full = { delta = false },
             },
           },
@@ -1132,7 +1164,6 @@ describe('semantic token highlighting', function()
             start_col = 6,
             end_col = 9,
             type = 'variable',
-            marked = true,
           },
         },
         expected_screen = function()
@@ -1165,7 +1196,6 @@ describe('semantic token highlighting', function()
             start_col = 6,
             end_col = 17,
             type = 'variable',
-            marked = true,
           },
         },
         expected_screen = function()
@@ -1207,7 +1237,6 @@ int main()
             start_col = 4,
             end_col = 8,
             type = 'function',
-            marked = true,
           },
           { --  __cplusplus
             line = 3,
@@ -1216,7 +1245,6 @@ int main()
             start_col = 9,
             end_col = 20,
             type = 'macro',
-            marked = true,
           },
           { -- x
             line = 4,
@@ -1225,7 +1253,6 @@ int main()
             start_col = 12,
             end_col = 13,
             type = 'variable',
-            marked = true,
           },
           { -- std
             line = 5,
@@ -1234,7 +1261,6 @@ int main()
             start_col = 2,
             end_col = 5,
             type = 'namespace',
-            marked = true,
           },
           { -- cout
             line = 5,
@@ -1243,7 +1269,6 @@ int main()
             start_col = 7,
             end_col = 11,
             type = 'variable',
-            marked = true,
           },
           { -- x
             line = 5,
@@ -1252,7 +1277,6 @@ int main()
             start_col = 15,
             end_col = 16,
             type = 'variable',
-            marked = true,
           },
           { -- std
             line = 5,
@@ -1261,7 +1285,6 @@ int main()
             start_col = 20,
             end_col = 23,
             type = 'namespace',
-            marked = true,
           },
           { -- endl
             line = 5,
@@ -1270,34 +1293,27 @@ int main()
             start_col = 25,
             end_col = 29,
             type = 'function',
-            marked = true,
           },
           { -- #else comment #endif
             line = 6,
             end_line = 6,
-            modifiers = {},
             start_col = 0,
             end_col = 7,
             type = 'comment',
-            marked = true,
           },
           {
             line = 7,
             end_line = 7,
-            modifiers = {},
             start_col = 0,
             end_col = 11,
             type = 'comment',
-            marked = true,
           },
           {
             line = 8,
             end_line = 8,
-            modifiers = {},
             start_col = 0,
             end_col = 8,
             type = 'comment',
-            marked = true,
           },
         },
         expected_screen = function()
@@ -1337,11 +1353,9 @@ b = "as"]],
           {
             line = 0,
             end_line = 0,
-            modifiers = {},
             start_col = 0,
             end_col = 10,
             type = 'comment', -- comment
-            marked = true,
           },
           {
             line = 1,
@@ -1350,7 +1364,6 @@ b = "as"]],
             start_col = 6,
             end_col = 7,
             type = 'variable',
-            marked = true,
           },
           {
             line = 2,
@@ -1359,7 +1372,6 @@ b = "as"]],
             start_col = 0,
             end_col = 1,
             type = 'variable',
-            marked = true,
           },
         },
         expected_screen = function()
@@ -1399,20 +1411,16 @@ b = "as"]],
           {
             line = 0,
             end_line = 0,
-            modifiers = {},
             start_col = 0,
             end_col = 3, -- pub
             type = 'keyword',
-            marked = true,
           },
           {
             line = 0,
             end_line = 0,
-            modifiers = {},
             start_col = 4,
             end_col = 6, -- fn
             type = 'keyword',
-            marked = true,
           },
           {
             line = 0,
@@ -1421,79 +1429,62 @@ b = "as"]],
             start_col = 7,
             end_col = 11, -- main
             type = 'function',
-            marked = true,
           },
           {
             line = 0,
             end_line = 0,
-            modifiers = {},
             start_col = 11,
             end_col = 12,
             type = 'parenthesis',
-            marked = true,
           },
           {
             line = 0,
             end_line = 0,
-            modifiers = {},
             start_col = 12,
             end_col = 13,
             type = 'parenthesis',
-            marked = true,
           },
           {
             line = 0,
             end_line = 0,
-            modifiers = {},
             start_col = 14,
             end_col = 15,
             type = 'brace',
-            marked = true,
           },
           {
             line = 1,
             end_line = 1,
-            modifiers = {},
             start_col = 4,
             end_col = 12,
             type = 'macro', -- println!
-            marked = true,
           },
           {
             line = 1,
             end_line = 1,
-            modifiers = {},
             start_col = 12,
             end_col = 13,
             type = 'parenthesis',
-            marked = true,
           },
           {
             line = 1,
             end_line = 1,
-            modifiers = {},
             start_col = 13,
             end_col = 27,
             type = 'string', -- "Hello world!"
-            marked = true,
           },
           {
             line = 1,
             end_line = 1,
-            modifiers = {},
             start_col = 27,
             end_col = 28,
             type = 'parenthesis',
-            marked = true,
           },
           {
             line = 1,
             end_line = 1,
-            modifiers = {},
             start_col = 28,
             end_col = 29,
             type = 'semicolon',
-            marked = true,
           },
           {
             line = 2,
@@ -1502,25 +1493,20 @@ b = "as"]],
             start_col = 4,
             end_col = 9, -- break
             type = 'keyword',
-            marked = true,
           },
           {
             line = 2,
             end_line = 2,
-            modifiers = {},
             start_col = 10,
             end_col = 14, -- rust
             type = 'unresolvedReference',
-            marked = true,
           },
           {
             line = 2,
             end_line = 2,
-            modifiers = {},
             start_col = 14,
             end_col = 15,
             type = 'semicolon',
-            marked = true,
           },
           {
             line = 3,
@@ -1529,16 +1515,13 @@ b = "as"]],
             start_col = 4,
             end_col = 13,
             type = 'comment', -- /// what?
-            marked = true,
           },
           {
             line = 4,
             end_line = 4,
-            modifiers = {},
             start_col = 0,
             end_col = 1,
             type = 'brace',
-            marked = true,
           },
         },
         expected_screen = function()
@@ -1580,7 +1563,7 @@ b = "as"]],
 
         test.expected_screen()
 
-        eq(
+        eq_tokens(
           test.expected,
           exec_lua(function()
             local bufnr = vim.api.nvim_get_current_buf()
@@ -1618,7 +1601,6 @@ b = "as"]],
             end_line = 0,
             end_col = 9,
             type = 'variable',
-            marked = true,
           },
         },
         expected2 = {
@@ -1632,7 +1614,6 @@ b = "as"]],
             end_line = 1,
             end_col = 9,
             type = 'variable',
-            marked = true,
           },
         },
         expected_screen1 = function()
@@ -1705,7 +1686,6 @@ int main()
             end_col = 8,
             modifiers = { declaration = true, globalScope = true },
             type = 'function',
-            marked = true,
           },
           {
             line = 4,
@@ -1714,7 +1694,6 @@ int main()
             end_col = 9,
             modifiers = { declaration = true, functionScope = true },
             type = 'variable',
-            marked = true,
           },
           {
             line = 5,
@@ -1723,7 +1702,6 @@ int main()
             end_col = 18,
             modifiers = { globalScope = true },
             type = 'macro',
-            marked = true,
           },
           {
             line = 6,
@@ -1732,7 +1710,6 @@ int main()
             end_col = 7,
             modifiers = { defaultLibrary = true, globalScope = true },
             type = 'namespace',
-            marked = true,
           },
           {
             line = 6,
@@ -1741,14 +1718,12 @@ int main()
             end_col = 13,
             modifiers = { defaultLibrary = true, globalScope = true },
             type = 'variable',
-            marked = true,
           },
           {
             line = 6,
             end_line = 6,
             start_col = 17,
             end_col = 18,
-            marked = true,
             modifiers = { functionScope = true },
             type = 'variable',
           },
@@ -1757,27 +1732,21 @@ int main()
             end_line = 7,
             start_col = 0,
             end_col = 5,
-            marked = true,
-            modifiers = {},
             type = 'comment',
           },
           {
             line = 8,
             end_line = 8,
             end_col = 22,
-            modifiers = {},
             start_col = 0,
             type = 'comment',
-            marked = true,
           },
           {
             line = 9,
             end_line = 9,
             start_col = 0,
             end_col = 6,
-            modifiers = {},
             type = 'comment',
-            marked = true,
           },
         },
         expected2 = {
@@ -1788,7 +1757,6 @@ int main()
             end_col = 8,
             modifiers = { declaration = true, globalScope = true },
             type = 'function',
-            marked = true,
           },
           {
             line = 4,
@@ -1797,7 +1765,6 @@ int main()
             end_col = 9,
             modifiers = { declaration = true, globalScope = true },
             type = 'function',
-            marked = true,
           },
           {
             line = 5,
@@ -1806,7 +1773,6 @@ int main()
             start_col = 11,
             modifiers = { declaration = true, functionScope = true },
             type = 'variable',
-            marked = true,
           },
           {
             line = 6,
@@ -1815,7 +1781,6 @@ int main()
             end_col = 18,
             modifiers = { globalScope = true },
             type = 'macro',
-            marked = true,
           },
           {
             line = 7,
@@ -1824,7 +1789,6 @@ int main()
             end_col = 7,
             modifiers = { defaultLibrary = true, globalScope = true },
             type = 'namespace',
-            marked = true,
           },
           {
             line = 7,
@@ -1833,14 +1797,12 @@ int main()
             end_col = 13,
             modifiers = { defaultLibrary = true, globalScope = true },
             type = 'variable',
-            marked = true,
           },
           {
             line = 7,
             end_line = 7,
             start_col = 17,
             end_col = 18,
-            marked = true,
             modifiers = { globalScope = true },
             type = 'function',
           },
@@ -1849,27 +1811,21 @@ int main()
             end_line = 8,
             start_col = 0,
             end_col = 5,
-            marked = true,
-            modifiers = {},
             type = 'comment',
           },
           {
             line = 9,
             end_line = 9,
             end_col = 22,
-            modifiers = {},
             start_col = 0,
             type = 'comment',
-            marked = true,
           },
           {
             line = 10,
             end_line = 10,
             start_col = 0,
             end_col = 6,
-            modifiers = {},
             type = 'comment',
-            marked = true,
           },
         },
         expected_screen1 = function()
@@ -1936,7 +1892,6 @@ int main()
             start_col = 0,
             end_col = 6,
             type = 'variable',
-            marked = true,
           },
         },
         expected2 = {},
@@ -1986,7 +1941,7 @@ int main()
 
         test.expected_screen1()
 
-        eq(
+        eq_tokens(
           test.expected1,
           exec_lua(function()
             return vim.lsp.semantic_tokens.__STHighlighter.active[bufnr].client_state[client_id].current_result.highlights
@@ -2004,7 +1959,7 @@ int main()
         feed('<Ignore>')
         test.expected_screen2()
 
-        eq(
+        eq_tokens(
           test.expected2,
           exec_lua(function()
             return vim.lsp.semantic_tokens.__STHighlighter.active[bufnr].client_state[client_id].current_result.highlights

@@ -2,6 +2,7 @@ local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local clear, feed, command = n.clear, n.feed, n.command
 local eq = t.eq
 local insert = n.insert
@@ -404,7 +405,7 @@ describe('Screen', function()
 
       feed('v')
       screen:expect([[
-        ^foo {1:b} bar {1:b} eggs                                     |
+        {6:^f}oo {1:b} bar {1:b} eggs                                     |
         foo {1:b} bar {1:b} eggs                                     |*4
                                                              |
         {0:~                                                    }|*3
@@ -452,7 +453,7 @@ describe('Screen', function()
 
       feed('v')
       screen:expect([[
-        ^foo barf bar barf eggs                               |
+        {6:^f}oo barf bar barf eggs                               |
         foo {1:b} bar {1:b} eggs                                     |*4
                                                              |
         {0:~                                                    }|*3
@@ -693,7 +694,7 @@ describe('Screen', function()
       feed(':3<cr>o    a<Esc>ggV')
       screen:expect {
         grid = [[
-        ^f{6:oo }{1:b}{6: bar }{1:b}{6: eggs}                                     |
+        {6:^foo }{1:b}{6: bar }{1:b}{6: eggs}                                     |
         foo {1:b} bar {1:b} eggs                                     |*2
             a                                                |
         foo {1:b} bar {1:b} eggs                                     |*5
@@ -704,14 +705,14 @@ describe('Screen', function()
       screen:expect {
         grid = [[
         {6:foo }{1:b}{6: bar }{1:b}{6: eggs}                                     |*8
-        ^f{6:oo }{1:b}{6: bar }{1:b}{6: eggs}                                     |
+        {6:^foo }{1:b}{6: bar }{1:b}{6: eggs}                                     |
         {4:-- VISUAL LINE --}                                    |
       ]],
       }
       feed(string.rep('k', 15))
       screen:expect {
         grid = [[
-        ^f{6:oo }{1:b}{6: bar }{1:b}{6: eggs}                                     |
+        {6:^foo }{1:b}{6: bar }{1:b}{6: eggs}                                     |
         foo {1:b} bar {1:b} eggs                                     |*2
             a                                                |
         foo {1:b} bar {1:b} eggs                                     |*5

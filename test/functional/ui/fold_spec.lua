@@ -2,6 +2,7 @@ local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local clear, feed, eq = n.clear, n.feed, t.eq
 local command = n.command
 local feed_command = n.feed_command
@@ -193,7 +194,7 @@ describe('folded lines', function()
             [2:---------------------------------------------]|*7
             [3:---------------------------------------------]|
           ## grid 2
-            {7:+ }{8:  1 }{101:^+--  4 lines: This is a················}|
+            {10:+ }{8:  1 }{101:^+--  4 lines: This is a················}|
             {7:  }{8:  5 }in his cave.                           |
             {7:  }{8:  6 }                                       |
             {1:~                                            }|*4
@@ -206,7 +207,7 @@ describe('folded lines', function()
             [2:---------------------------------------------]|*7
             [3:---------------------------------------------]|
           ## grid 2
-            {7:+ }{8:  1 }{101:^This is a······························}|
+            {10:+ }{8:  1 }{101:^This is a······························}|
             {7:  }{8:  5 }in his cave.                           |
             {7:  }{8:  6 }                                       |
             {1:~                                            }|*4
@@ -217,7 +218,7 @@ describe('folded lines', function()
       else
         if foldtext then
           screen:expect([[
-            {7:+ }{8:  1 }{101:^+--  4 lines: This is a················}|
+            {10:+ }{8:  1 }{101:^+--  4 lines: This is a················}|
             {7:  }{8:  5 }in his cave.                           |
             {7:  }{8:  6 }                                       |
             {1:~                                            }|*4
@@ -225,7 +226,7 @@ describe('folded lines', function()
           ]])
         else
           screen:expect([[
-            {7:+ }{8:  1 }{101:^This is a······························}|
+            {10:+ }{8:  1 }{101:^This is a······························}|
             {7:  }{8:  5 }in his cave.                           |
             {7:  }{8:  6 }                                       |
             {1:~                                            }|*4
@@ -1184,155 +1185,6 @@ describe('folded lines', function()
       end
     end)
 
-    it('in cmdline window', function()
-      feed_command('set foldmethod=manual foldcolumn=1')
-      feed_command('let x = 1')
-      feed_command('/alpha')
-      feed_command('/omega')
-
-      feed('<cr>q:')
-      if multigrid then
-        screen:expect([[
-        ## grid 1
-          [2:---------------------------------------------]|
-          {2:[No Name]                                    }|
-          [4:---------------------------------------------]|*4
-          {3:[Command Line]                               }|
-          [3:---------------------------------------------]|
-        ## grid 2
-          {7: }                                            |
-        ## grid 3
-          :                                            |
-        ## grid 4
-          {1::}{7: }set foldmethod=manual foldcolumn=1         |
-          {1::}{7: }let x = 1                                  |
-          {1::}{7: }^                                           |
-          {1:~                                            }|
-        ]])
-      else
-        screen:expect([[
-          {7: }                                            |
-          {2:[No Name]                                    }|
-          {1::}{7: }set foldmethod=manual foldcolumn=1         |
-          {1::}{7: }let x = 1                                  |
-          {1::}{7: }^                                           |
-          {1:~                                            }|
-          {3:[Command Line]                               }|
-          :                                            |
-        ]])
-      end
-
-      feed('kzfk')
-      if multigrid then
-        screen:expect([[
-        ## grid 1
-          [2:---------------------------------------------]|
-          {2:[No Name]                                    }|
-          [4:---------------------------------------------]|*4
-          {3:[Command Line]                               }|
-          [3:---------------------------------------------]|
-        ## grid 2
-          {7: }                                            |
-        ## grid 3
-          :                                            |
-        ## grid 4
-          {1::}{7:+}{13:^+--  2 lines: set foldmethod=manual foldcol}|
-          {1::}{7: }                                           |
-          {1:~                                            }|*2
-        ]])
-      else
-        screen:expect([[
-          {7: }                                            |
-          {2:[No Name]                                    }|
-          {1::}{7:+}{13:^+--  2 lines: set foldmethod=manual foldcol}|
-          {1::}{7: }                                           |
-          {1:~                                            }|*2
-          {3:[Command Line]                               }|
-          :                                            |
-        ]])
-      end
-
-      feed('<cr>')
-      if multigrid then
-        screen:expect([[
-        ## grid 1
-          [2:---------------------------------------------]|*7
-          [3:---------------------------------------------]|
-        ## grid 2
-          {7: }^                                            |
-          {1:~                                            }|*6
-        ## grid 3
-          :                                            |
-        ]])
-      else
-        screen:expect([[
-          {7: }^                                            |
-          {1:~                                            }|*6
-          :                                            |
-        ]])
-      end
-
-      feed('/<c-f>')
-      if multigrid then
-        screen:expect([[
-        ## grid 1
-          [2:---------------------------------------------]|
-          {2:[No Name]                                    }|
-          [5:---------------------------------------------]|*4
-          {3:[Command Line]                               }|
-          [3:---------------------------------------------]|
-        ## grid 2
-          {7: }                                            |
-        ## grid 3
-          /                                            |
-        ## grid 5
-          {1:/}{7: }alpha                                      |
-          {1:/}{7: }{10:omega}                                      |
-          {1:/}{7: }^                                           |
-          {1:~                                            }|
-        ]])
-      else
-        screen:expect([[
-          {7: }                                            |
-          {2:[No Name]                                    }|
-          {1:/}{7: }alpha                                      |
-          {1:/}{7: }{10:omega}                                      |
-          {1:/}{7: }^                                           |
-          {1:~                                            }|
-          {3:[Command Line]                               }|
-          /                                            |
-        ]])
-      end
-
-      feed('ggzfG')
-      if multigrid then
-        screen:expect([[
-        ## grid 1
-          [2:---------------------------------------------]|
-          {2:[No Name]                                    }|
-          [5:---------------------------------------------]|*4
-          {3:[Command Line]                               }|
-          [3:---------------------------------------------]|
-        ## grid 2
-          {7: }                                            |
-        ## grid 3
-          /                                            |
-        ## grid 5
-          {1:/}{7:+}{13:^+--  3 lines: alpha························}|
-          {1:~                                            }|*3
-        ]])
-      else
-        screen:expect([[
-          {7: }                                            |
-          {2:[No Name]                                    }|
-          {1:/}{7:+}{13:^+--  3 lines: alpha························}|
-          {1:~                                            }|*3
-          {3:[Command Line]                               }|
-          /                                            |
-        ]])
-      end
-    end)
-
     it('foldcolumn autoresize', function()
       fn.setline(1, 'line 1')
       fn.setline(2, 'line 2')
@@ -2047,7 +1899,7 @@ describe('folded lines', function()
             virt_line below line 2                       |
             more virt_line below line 2                  |
             {13:+--  2 lines: line 3·························}|
-            ^l{17:ine 5}                                       |
+            {17:^line 5}                                       |
             {1:~                                            }|*3
           ## grid 3
             {5:-- VISUAL LINE --}                            |
@@ -2069,7 +1921,7 @@ describe('folded lines', function()
           virt_line below line 2                       |
           more virt_line below line 2                  |
           {13:+--  2 lines: line 3·························}|
-          ^l{17:ine 5}                                       |
+          {17:^line 5}                                       |
           {1:~                                            }|*3
           {5:-- VISUAL LINE --}                            |
         ]])
@@ -2085,7 +1937,7 @@ describe('folded lines', function()
           ## grid 2
             more virt_line below line 2                  |
             {13:+--  2 lines: line 3·························}|
-            ^l{17:ine 5}                                       |
+            {17:^line 5}                                       |
             {1:~                                            }|*4
           ## grid 3
             {5:-- VISUAL LINE --}                            |
@@ -2106,7 +1958,7 @@ describe('folded lines', function()
         screen:expect([[
           more virt_line below line 2                  |
           {13:+--  2 lines: line 3·························}|
-          ^l{17:ine 5}                                       |
+          {17:^line 5}                                       |
           {1:~                                            }|*4
           {5:-- VISUAL LINE --}                            |
         ]])
@@ -2121,7 +1973,7 @@ describe('folded lines', function()
             [3:---------------------------------------------]|
           ## grid 2
             {13:+--  2 lines: line 3·························}|
-            {17:line }^5                                       |
+            {17:line ^5}                                       |
             {1:~                                            }|*5
           ## grid 3
             {5:-- VISUAL LINE --}                            |
@@ -2141,7 +1993,7 @@ describe('folded lines', function()
       else
         screen:expect([[
           {13:+--  2 lines: line 3·························}|
-          {17:line }^5                                       |
+          {17:line ^5}                                       |
           {1:~                                            }|*5
           {5:-- VISUAL LINE --}                            |
         ]])
@@ -2507,7 +2359,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " }{13:口···························}|
           {30:" barbarbarbarba}rbar                         |
           {103:+--  3 lines: " }{13:口···························}|
-          {30:" bazbazbazbazb}^azbaz                         |
+          {30:" bazbazbazbazb^a}zbaz                         |
           {1:~                                            }|*2
         ## grid 3
           {5:-- VISUAL BLOCK --}                           |
@@ -2518,7 +2370,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " }{13:口···························}|
           {30:" barbarbarbarba}rbar                         |
           {103:+--  3 lines: " }{13:口···························}|
-          {30:" bazbazbazbazb}^azbaz                         |
+          {30:" bazbazbazbazb^a}zbaz                         |
           {1:~                                            }|*2
           {5:-- VISUAL BLOCK --}                           |
         ]])
@@ -2535,7 +2387,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " 口}{13:···························}|
           {30:" barbarbarbarbar}bar                         |
           {103:+--  3 lines: " 口}{13:···························}|
-          {30:" bazbazbazbazba}^zbaz                         |
+          {30:" bazbazbazbazba^z}baz                         |
           {1:~                                            }|*2
         ## grid 3
           {5:-- VISUAL BLOCK --}                           |
@@ -2546,7 +2398,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " 口}{13:···························}|
           {30:" barbarbarbarbar}bar                         |
           {103:+--  3 lines: " 口}{13:···························}|
-          {30:" bazbazbazbazba}^zbaz                         |
+          {30:" bazbazbazbazba^z}baz                         |
           {1:~                                            }|*2
           {5:-- VISUAL BLOCK --}                           |
         ]])
@@ -2563,7 +2415,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " 口}{13:···························}|
           {30:" barbarbarbarbarb}ar                         |
           {103:+--  3 lines: " 口}{13:···························}|
-          {30:" bazbazbazbazbaz}^baz                         |
+          {30:" bazbazbazbazbaz^b}az                         |
           {1:~                                            }|*2
         ## grid 3
           {5:-- VISUAL BLOCK --}                           |
@@ -2574,7 +2426,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " 口}{13:···························}|
           {30:" barbarbarbarbarb}ar                         |
           {103:+--  3 lines: " 口}{13:···························}|
-          {30:" bazbazbazbazbaz}^baz                         |
+          {30:" bazbazbazbazbaz^b}az                         |
           {1:~                                            }|*2
           {5:-- VISUAL BLOCK --}                           |
         ]])
@@ -2591,7 +2443,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " 口··}{13:·························}|
           {30:" barbarbarbarbarbar}                         |
           {103:+--  3 lines: " 口··}{13:·························}|
-          {30:" bazbazbazbazbazba}^z                         |
+          {30:" bazbazbazbazbazba^z}                         |
           {1:~                                            }|*2
         ## grid 3
           {5:-- VISUAL BLOCK --}                           |
@@ -2602,7 +2454,7 @@ describe('folded lines', function()
           {103:+--  3 lines: " 口··}{13:·························}|
           {30:" barbarbarbarbarbar}                         |
           {103:+--  3 lines: " 口··}{13:·························}|
-          {30:" bazbazbazbazbazba}^z                         |
+          {30:" bazbazbazbazbazba^z}                         |
           {1:~                                            }|*2
           {5:-- VISUAL BLOCK --}                           |
         ]])
@@ -2619,7 +2471,7 @@ describe('folded lines', function()
           {13:+--  3 lines: " }{103:口··}{13:·························}|
           " barbarbarbarba{30:rbar}                         |
           {13:+--  3 lines: " }{103:口··}{13:·························}|
-          " bazbazbazbazba^z{30:baz}                         |
+          " bazbazbazbazba{30:^zbaz}                         |
           {1:~                                            }|*2
         ## grid 3
           {5:-- VISUAL BLOCK --}                           |
@@ -2630,7 +2482,7 @@ describe('folded lines', function()
           {13:+--  3 lines: " }{103:口··}{13:·························}|
           " barbarbarbarba{30:rbar}                         |
           {13:+--  3 lines: " }{103:口··}{13:·························}|
-          " bazbazbazbazba^z{30:baz}                         |
+          " bazbazbazbazba{30:^zbaz}                         |
           {1:~                                            }|*2
           {5:-- VISUAL BLOCK --}                           |
         ]])
@@ -2647,7 +2499,7 @@ describe('folded lines', function()
           {13:+--  3 lines: " }{103:口··}{13:·························}|
           " barbarbarbarbar{30:bar}                         |
           {13:+--  3 lines: " }{103:口··}{13:·························}|
-          " bazbazbazbazbaz^b{30:az}                         |
+          " bazbazbazbazbaz{30:^baz}                         |
           {1:~                                            }|*2
         ## grid 3
           {5:-- VISUAL BLOCK --}                           |
@@ -2658,7 +2510,7 @@ describe('folded lines', function()
           {13:+--  3 lines: " }{103:口··}{13:·························}|
           " barbarbarbarbar{30:bar}                         |
           {13:+--  3 lines: " }{103:口··}{13:·························}|
-          " bazbazbazbazbaz^b{30:az}                         |
+          " bazbazbazbazbaz{30:^baz}                         |
           {1:~                                            }|*2
           {5:-- VISUAL BLOCK --}                           |
         ]])
@@ -2801,7 +2653,7 @@ describe('folded lines', function()
           [3:------------------------------]|
         ## grid 2
           {7:    }This is a                 |
-          {7:-   }^v{30:alid English}             |
+          {7:-   }{30:^valid English}             |
           {7:│+  }{9:▶}{103:--}{105:     }{106:sentence composed }|
           {7:│+  }{9:▶}{103:--}{105:     }{106:in his cave.}{103:······}|
           {1:~                             }|*2
@@ -2811,7 +2663,7 @@ describe('folded lines', function()
       else
         screen:expect([[
           {7:    }This is a                 |
-          {7:-   }^v{30:alid English}             |
+          {7:-   }{30:^valid English}             |
           {7:│+  }{9:▶}{103:--}{105:     }{106:sentence composed }|
           {7:│+  }{9:▶}{103:--}{105:     }{106:in his cave.}{103:······}|
           {1:~                             }|*2
@@ -2827,7 +2679,7 @@ describe('folded lines', function()
           [3:------------------------------]|
         ## grid 2
                            a si sihT{7:    }|
-                       {30:hsilgnE dila}^v{7:   -}|
+                       {30:hsilgnE dila^v}{7:   -}|
           {106: desopmoc ecnetnes}{105:     }{103:--}{9:▶}{7:  +│}|
           {103:······}{106:.evac sih ni}{105:     }{103:--}{9:▶}{7:  +│}|
           {1:                             ~}|*2
@@ -2837,7 +2689,7 @@ describe('folded lines', function()
       else
         screen:expect([[
                            a si sihT{7:    }|
-                       {30:hsilgnE dila}^v{7:   -}|
+                       {30:hsilgnE dila^v}{7:   -}|
           {106: desopmoc ecnetnes}{105:     }{103:--}{9:▶}{7:  +│}|
           {103:······}{106:.evac sih ni}{105:     }{103:--}{9:▶}{7:  +│}|
           {1:                             ~}|*2
@@ -2915,7 +2767,7 @@ describe('folded lines', function()
           [3:------------------------------]|
         ## grid 2
           {7:    }This is a                 |
-          {7:-   }^v{30:alid English}             |
+          {7:-   }{30:^valid English}             |
           {7:│+  }{108:sentence}{103: composed by······}|
           {7:│+  }{103:in his cave.··············}|
           {1:~                             }|*2
@@ -2925,7 +2777,7 @@ describe('folded lines', function()
       else
         screen:expect([[
           {7:    }This is a                 |
-          {7:-   }^v{30:alid English}             |
+          {7:-   }{30:^valid English}             |
           {7:│+  }{108:sentence}{103: composed by······}|
           {7:│+  }{103:in his cave.··············}|
           {1:~                             }|*2
@@ -2941,7 +2793,7 @@ describe('folded lines', function()
           [3:------------------------------]|
         ## grid 2
                            a si sihT{7:    }|
-                       {30:hsilgnE dila}^v{7:   -}|
+                       {30:hsilgnE dila^v}{7:   -}|
           {103:······yb desopmoc }{108:ecnetnes}{7:  +│}|
           {103:··············.evac sih ni}{7:  +│}|
           {1:                             ~}|*2
@@ -2951,7 +2803,7 @@ describe('folded lines', function()
       else
         screen:expect([[
                            a si sihT{7:    }|
-                       {30:hsilgnE dila}^v{7:   -}|
+                       {30:hsilgnE dila^v}{7:   -}|
           {103:······yb desopmoc }{108:ecnetnes}{7:  +│}|
           {103:··············.evac sih ni}{7:  +│}|
           {1:                             ~}|*2

@@ -32,9 +32,9 @@ hashpipe:write([[
 #include "nvim/ex_getln.h"
 #include "nvim/fold.h"
 #include "nvim/fuzzy.h"
-#include "nvim/getchar.h"
 #include "nvim/indent.h"
 #include "nvim/indent_c.h"
+#include "nvim/input.h"
 #include "nvim/insexpand.h"
 #include "nvim/mapping.h"
 #include "nvim/match.h"
@@ -45,29 +45,41 @@ hashpipe:write([[
 #include "nvim/quickfix.h"
 #include "nvim/runtime.h"
 #include "nvim/search.h"
+#include "nvim/sign.h"
 #include "nvim/state.h"
 #include "nvim/strings.h"
-#include "nvim/sign.h"
 #include "nvim/testing.h"
 #include "nvim/undo.h"
 
 ]])
 
 local funcs = loadfile(eval_file)().funcs
-for _, func in pairs(funcs) do
-  if func.float_func then
+for name, func in pairs(funcs) do
+  local n = (func.func_float and 1 or 0) + (func.func_lua and 1 or 0) + (func.func and 1 or 0)
+  assert(n <= 1, name .. ': only one of func, func_float, func_lua can be set')
+
+  if func.func_float then
     func.func = 'float_op_wrapper'
-    func.data = '{ .float_func = &' .. func.float_func .. ' }'
+    func.data = '{ .func_float = &' .. func.func_float .. ' }'
+  elseif func.func_lua then
+    func.func = 'lua_wrapper'
+    func.data = '{ .func_lua = "' .. func.func_lua .. '" }'
   end
 end
 
 local metadata = mpack.decode(io.open(metadata_file, 'rb'):read('*all'))
 for _, fun in ipairs(metadata) do
   if fun.eval then
+    local args
+    if type(fun.opts_idx) == 'number' then
+      args = { fun.opts_idx - 1, #fun.parameters }
+    else
+      args = #fun.parameters
+    end
     funcs[fun.name] = {
-      args = #fun.parameters,
+      args = args,
       func = 'api_wrapper',
-      data = '{ .api_handler = &method_handlers[' .. fun.handler_id .. '] }',
+      data = '{ .func_api = &method_handlers[' .. fun.handler_id .. '] }',
     }
   end
 end

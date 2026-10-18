@@ -2,6 +2,7 @@ local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 
+local describe, it, before_each = t.describe, t.it, t.before_each
 local clear = n.clear
 local feed, command, insert = n.feed, n.command, n.insert
 local eq = t.eq
@@ -1428,7 +1429,7 @@ describe('ext_multigrid', function()
       [3:-----------------------------------------------------]|
     ## grid 2
       some text             |
-      to be {20:clicke}^d         |
+      to be {20:clicke^d}         |
       {1:~                     }|*5
     ## grid 3
       {7:-- VISUAL --}                                         |
@@ -1453,7 +1454,7 @@ describe('ext_multigrid', function()
       [3:-----------------------------------------------------]|
     ## grid 2
       some text             |
-      to be {20:clicke}^d         |
+      to be {20:clicke^d}         |
       {1:~                     }|*5
     ## grid 3
       {7:-- VISUAL --}                                         |
@@ -1514,7 +1515,7 @@ describe('ext_multigrid', function()
     ## grid 3
       {7:-- VISUAL --}                                         |
     ## grid 4
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do {20:eiusm}^o          |
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do {20:eiusm^o}          |
       {1:~                                                                               }|
     ## grid 5
       some text                     |
@@ -1539,7 +1540,7 @@ describe('ext_multigrid', function()
     ## grid 3
       {7:-- VISUAL --}                                         |
     ## grid 4
-      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do {20:eiusm}^o          |
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do {20:eiusm^o}          |
       {1:~                                                                               }|
     ## grid 5
       some text                     |
@@ -1638,7 +1639,7 @@ describe('ext_multigrid', function()
       ipiscin|
       g elit,|
        sed do|
-       {20:eiusm}^o|
+       {20:eiusm^o}|
     ## grid 5
       some text                     |
       to be clicked                 |
@@ -1671,7 +1672,7 @@ describe('ext_multigrid', function()
       ipiscin|
       g elit,|
        sed do|
-       {20:eiusm}^o|
+       {20:eiusm^o}|
     ## grid 5
       some text                     |
       to be clicked                 |
@@ -1777,7 +1778,7 @@ describe('ext_multigrid', function()
       ipiscin|
       g elit,|
        sed do|
-       {20:eiusm}^o|
+       {20:eiusm^o}|
       {1:~      }|
     ## grid 5
       some text                     |
@@ -1811,7 +1812,7 @@ describe('ext_multigrid', function()
       ipiscin|
       g elit,|
        sed do|
-       {20:eiusm}^o|
+       {20:eiusm^o}|
       {1:~      }|
     ## grid 5
       some text                     |
@@ -1890,7 +1891,7 @@ describe('ext_multigrid', function()
       {1:~                         }|*11
     ## grid 5
       {20:foo}                       |
-      {20:ba}^r                       |
+      {20:ba^r}                       |
       {1:~                         }|*4
     ]],
     }
@@ -2674,7 +2675,7 @@ describe('ext_multigrid', function()
       dolore eu fugiat nulla pariatur. Excepteur sint |
       occaecat cupidatat non proident, sunt in culpa  |
       qui officia deserunt mollit anim id est         |
-      l^aborum.                                        |
+      l{20:^a}borum.                                        |
       {1:~                                               }|
     ## grid 3
       {7:-- VISUAL --}                                    |

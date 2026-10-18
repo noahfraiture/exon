@@ -2,6 +2,7 @@ local t = require('test.testutil')
 local n = require('test.functional.testnvim')()
 local Screen = require('test.functional.ui.screen')
 
+local describe, it, before_each, finally = t.describe, t.it, t.before_each, t.finally
 local clear = n.clear
 local insert = n.insert
 local exec_lua = n.exec_lua
@@ -771,8 +772,22 @@ describe('treesitter highlighting (C)', function()
         lang = 'c',
         id = 14,
         pattern_id = 23,
+        row = 0,
+        col = 0,
+        end_row = 6,
+        end_col = 0,
       },
-      { capture = 'type', metadata = {}, lang = 'c', id = 3, pattern_id = 16 },
+      {
+        capture = 'type',
+        metadata = {},
+        lang = 'c',
+        id = 3,
+        pattern_id = 16,
+        row = 0,
+        col = 0,
+        end_row = 0,
+        end_col = 3,
+      },
     }, exec_lua [[ return vim.treesitter.get_captures_at_pos(0, 0, 2) ]])
   end)
 
@@ -872,6 +887,37 @@ describe('treesitter highlighting (C)', function()
           return 0;                                                      |
         ^}                                                                |
         {1:~                                                                }|*2
+                                                                         |
+      ]],
+    })
+  end)
+
+  it('supports @noconceal', function()
+    insert([[
+      int foo = bar;
+    ]])
+
+    exec_lua(function()
+      vim.opt.cole = 2
+      local parser = vim.treesitter.get_parser(0, 'c')
+      vim.treesitter.highlighter.new(parser, {
+        queries = {
+          c = [[
+        ((identifier) @conceal
+         (#set! conceal "X"))
+
+        ((identifier) @noconceal
+         (#eq? @noconceal "bar"))
+      ]],
+        },
+      })
+    end)
+
+    screen:expect({
+      grid = [[
+        int {14:X} = bar;                                                     |
+        ^                                                                 |
+        {1:~                                                                }|*15
                                                                          |
       ]],
     })
@@ -1450,6 +1496,21 @@ printf('Hello World!');
       assert(vim.api.nvim_win_text_height(0, {}).all == 1, 'line concealed')
     end)
   end)
+
+  it('conceals backslash in hard_line_break/backslash_escape', function()
+    command('set concealcursor=n')
+    command('set conceallevel=2')
+    insert('Hello\\\nWorld\nHello\\. World')
+    screen:expect({
+      grid = [[
+        Hello                                   |
+        World                                   |
+        Hello. Worl^d                            |
+        {1:~                                       }|*2
+                                                |
+      ]],
+    })
+  end)
 end)
 
 it('starting and stopping treesitter highlight in init.lua works #29541', function()
@@ -1532,4 +1593,66 @@ it('conceals lines contributed by an injected tree', function()
       return vim.api.nvim_win_text_height(0, {}).all
     end)
   )
+end)
+
+describe('treesitter get_captures', function()
+  local function captures(start, stop)
+    local result = exec_lua(function()
+      return vim.treesitter.get_captures(0, start, stop)
+    end)
+    return vim.tbl_map(function(c)
+      return { c.capture, c.lang, c.row, c.col, c.end_row, c.end_col }
+    end, result)
+  end
+
+  before_each(function()
+    clear()
+    exec_lua(function()
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'local abc = 123', 'local def = 456' })
+      vim.treesitter.query.set('lua', 'highlights', '(identifier) @variable (number) @number')
+      vim.treesitter.start(0, 'lua')
+      vim.treesitter.get_parser():parse(true)
+    end)
+  end)
+
+  it('returns overlapping captures with exclusive ends', function()
+    eq({ { 'variable', 'lua', 0, 6, 0, 9 } }, captures({ 0, 7 }))
+    eq({}, captures({ 0, 9 }))
+    eq({ { 'variable', 'lua', 0, 6, 0, 9 } }, captures({ 0, 7 }, { 0, 8 }))
+    eq({}, captures({ 0, 9 }, { 0, 12 }))
+    eq({}, captures({ 0, 7 }, { 0, 7 }))
+  end)
+
+  it('accepts row endpoints and excludes the stop row', function()
+    eq({ { 'variable', 'lua', 0, 6, 0, 9 }, { 'number', 'lua', 0, 12, 0, 15 } }, captures(0, 1))
+    eq(captures(0, 1), captures(0))
+    eq({}, captures(0, 0))
+    eq(captures(0, 1), captures({ 0, 0 }, 1))
+    eq({
+      { 'variable', 'lua', 0, 6, 0, 9 },
+      { 'number', 'lua', 0, 12, 0, 15 },
+      { 'variable', 'lua', 1, 6, 1, 9 },
+    }, captures(0, { 1, 7 }))
+  end)
+
+  it('includes injected captures outside the parsed viewport', function()
+    exec_lua(function()
+      vim.api.nvim_set_current_buf(vim.api.nvim_create_buf(false, true))
+      local lines = {}
+      for row = 1, 100 do
+        lines[row] = 'local s = "int abc;"'
+      end
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+      vim.treesitter.query.set(
+        'lua',
+        'injections',
+        '((string_content) @injection.content (#set! injection.language "c"))'
+      )
+      vim.treesitter.query.set('c', 'highlights', '(identifier) @variable')
+      vim.treesitter.start(0, 'lua')
+      vim.treesitter.get_parser():parse({ 0, 10 })
+    end)
+    eq({ { 'variable', 'c', 99, 15, 99, 18 } }, captures({ 99, 16 }, { 99, 17 }))
+    eq({}, captures({ 99, 18 }, { 99, 19 }))
+  end)
 end)

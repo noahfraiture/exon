@@ -1,5 +1,6 @@
 local t = require('test.testutil')
 
+local describe, it = t.describe, t.it
 local eq = t.eq
 local matches = t.matches
 local pcall_err = t.pcall_err
@@ -317,6 +318,16 @@ describe('vim.iter', function()
           :totable()
       )
       eq({ 4, 3, 2, 1 }, vim.iter(q):take(correct):totable())
+    end
+
+    do
+      local q = { 4, 3, 2, 1 }
+      local function positive(x)
+        return x > 0
+      end
+
+      eq({ 4, 3, 2, 1 }, vim.iter(q):take(positive):totable())
+      eq({ 1, 2, 3, 4 }, vim.iter(q):rev():take(positive):totable())
     end
 
     do
@@ -694,6 +705,47 @@ describe('vim.iter', function()
         end)
         :totable()
     )
+  end)
+
+  it('count()', function()
+    local odd = function(v)
+      return v % 2 ~= 0
+    end
+
+    eq(0, vim.iter({}):count())
+
+    local q = { 1, 2, 3, 4, 5 }
+    eq(5, vim.iter(q):count())
+    eq(5, vim.iter(q):rev():count())
+    eq(3, vim.iter(q):filter(odd):count())
+
+    do
+      local it = vim.iter(q)
+      eq(5, it:count())
+      eq(0, it:count())
+      eq(nil, it:next())
+    end
+
+    local m = { a = 1, b = 2, c = 3 }
+    eq(3, vim.iter(m):count())
+    eq(
+      2,
+      vim
+        .iter(m)
+        :filter(function(_, v)
+          return odd(v)
+        end)
+        :count()
+    )
+
+    do
+      local it = vim.iter(m)
+      eq(3, it:count())
+      eq(0, it:count())
+      eq(nil, it:next())
+    end
+
+    eq(6, vim.iter(vim.split('123abc', '')):count())
   end)
 
   it('handles map-like tables', function()

@@ -33,6 +33,10 @@
 #include "nvim/ui.h"
 #include "nvim/ui_client.h"
 
+#ifdef MSWIN
+# include "nvim/os/os_win_console.h"
+#endif
+
 #include "msgpack_rpc/channel.c.generated.h"
 
 #ifdef NVIM_LOG_DEBUG
@@ -431,6 +435,9 @@ static void internal_read_event(void **argv)
 
   p->read_ptr = buffer->data;
   p->read_size = buffer->size;
+  if (unpacker_closed(p)) {
+    goto end;
+  }
   parse_msgpack(channel);
 
   if (p->read_size) {
@@ -440,6 +447,7 @@ static void internal_read_event(void **argv)
     }
   }
 
+end:
   channel_decref(channel);
   wstream_release_wbuffer(buffer);
 }
@@ -473,6 +481,18 @@ static void broadcast_event(const char *name, Array args)
   kvi_destroy(chans);
 }
 
+/// Checks if an open RPC channel has detach=false.
+static bool has_undetached_rpc_chan(void)
+{
+  Channel *chan;
+  map_foreach_value(&channels, chan, {
+    if (chan->is_rpc && !chan->rpc.closed && !chan->detach) {
+      return true;
+    }
+  });
+  return false;
+}
+
 /// Mark rpc state as closed, and release its reference to the channel.
 /// Don't call this directly, call channel_close(id, kChannelPartRpc, &error)
 void rpc_close(Channel *channel)
@@ -494,6 +514,12 @@ static void rpc_close_event(void **argv)
 
   channel_decref(channel);
 
+#ifdef MSWIN
+  // Unexpected disconnect (e.g. after ":detach!") does not call ui_detach_channel, unlike the
+  // normal ":detach" case, so we need to do some cleanup here.
+  bool ui_closed = channel->rpc.ui != NULL;
+#endif
+
   // No more I/O can happen on this channel. Remove UI if there is one attached.
   // Do this here instead of in rpc_free() which isn't always called on exit, so that
   // UILeave events behave consistently.
@@ -501,7 +527,9 @@ static void rpc_close_event(void **argv)
 
   bool is_ui_client = ui_client_channel_id && channel->id == ui_client_channel_id;
   if (is_ui_client) {
-    ui_client_attach_to_restarted_server();
+    if (!exiting && channel->streamtype != kChannelStreamProc) {
+      ui_client_attach_to_restarted_server(false);
+    }
     if (ui_client_channel_id != channel->id) {
       // Attached to new server. Don't exit.
       return;
@@ -512,9 +540,16 @@ static void rpc_close_event(void **argv)
       return;
     }
     exit_on_closed_chan(0);
-  } else if (channel->streamtype == kChannelStreamStdio && !channel->detach) {
+  } else if (!channel->detach && !has_undetached_rpc_chan()) {
     exit_on_closed_chan(0);
   }
+#ifdef MSWIN
+  else if (ui_closed) {
+    // If the console belongs to the UI's host-terminal, swap to a hidden console, else closing that
+    // terminal would kill this server.
+    os_detach_ui_console(channel->streamtype == kChannelStreamStdio);
+  }
+#endif
 }
 
 void rpc_free(Channel *channel)
@@ -529,6 +564,7 @@ void rpc_free(Channel *channel)
 /// Closes a channel after receiving fatal error, and logs a message.
 static void chan_close_on_err(Channel *channel, char *msg, int loglevel)
 {
+  logmsg(loglevel, "RPC: ", NULL, -1, true, "%s", msg);
   for (size_t i = 0; i < kv_size(channel->rpc.call_stack); i++) {
     ChannelCallFrame *frame = kv_A(channel->rpc.call_stack, i);
     if (frame->returned) {
@@ -673,7 +709,7 @@ void rpc_set_client_info(uint64_t id, Dict info)
     chan->rpc.client_type = kClientTypeUnknown;
   }
 
-  channel_info_changed(chan, false);
+  channel_event(chan, EVENT_CHANINFO);
 }
 
 Dict rpc_client_info(Channel *chan)

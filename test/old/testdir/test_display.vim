@@ -16,7 +16,8 @@ func Test_display_foldcolumn()
   vnew
   vert resize 25
   call assert_equal(25, winwidth(winnr()))
-  set isprint=@
+  " does not affect test behavior, <82> is unprintable by default:
+  " set isprint=@
 
   1put='e more noise blah blah more stuff here'
 
@@ -241,7 +242,7 @@ func Test_display_scroll_at_topline()
 
   let buf = RunVimInTerminal('', #{cols: 20})
   call term_sendkeys(buf, ":call setline(1, repeat('a', 21))\<CR>")
-  call term_wait(buf)
+  call TermWait(buf)
   call term_sendkeys(buf, "O\<Esc>")
   call VerifyScreenDump(buf, 'Test_display_scroll_at_topline', #{rows: 4})
 
@@ -263,6 +264,7 @@ func Test_display_scroll_update_visual()
 
   let buf = RunVimInTerminal('-S XupdateVisual.vim', #{rows: 8, cols: 60})
   call term_sendkeys(buf, "VG7kk")
+  call WaitForAssert({-> assert_match('VISUAL.*\d\+\s\+\d', term_getline(buf, 8))}, 1000)
   call VerifyScreenDump(buf, 'Test_display_scroll_update_visual', {})
 
   call StopVimInTerminal(buf)
@@ -491,6 +493,23 @@ func Test_local_fillchars()
 
   call term_sendkeys(buf, ":wincmd k\r")
   call VerifyScreenDump(buf, 'Test_display_fillchars_2', {})
+
+  call StopVimInTerminal(buf)
+endfunc
+
+func Test_fillchars_vert_default()
+  CheckScreendump
+
+  let lines =<< trim END
+      hi VertSplit ctermfg=12 ctermbg=0
+      set fillchars=trunc:<
+      call setline(1, ['window 1']->repeat(3))
+      vnew
+      call setline(1, ['window 2']->repeat(3))
+  END
+  call writefile(lines, 'Xdisplayfillcharsvert', 'D')
+  let buf = RunVimInTerminal('-S Xdisplayfillcharsvert', #{rows: 8})
+  call VerifyScreenDump(buf, 'Test_display_fillchars_vert', {})
 
   call StopVimInTerminal(buf)
 endfunc
