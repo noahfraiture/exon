@@ -35,6 +35,220 @@ describe('native Helix mode', function()
     eq('one three', api.nvim_get_current_line())
   end)
 
+  describe('editor integration baseline', function()
+    before_each(function()
+      text({ 'alpha beta', '  bravo', 'charlie', 'delta', 'echo', 'foxtrot' })
+      command('set helix') -- No example configuration or repair mappings.
+    end)
+
+    it('provides discoverable defaults without inheriting Vim editing mappings', function()
+      for _, key in ipairs({
+        '[d',
+        ']d',
+        '[D',
+        ']D',
+        'gd',
+        'gy',
+        'gr',
+        'gi',
+        'gn',
+        'gp',
+        '<Space>k',
+        '=',
+      }) do
+        local map = n.fn.maparg(key, 'h', false, true)
+        eq(true, type(map.desc) == 'string' and #map.desc > 0)
+      end
+      command('nnoremap d dd')
+      feed('d')
+      eq('lpha beta', api.nvim_get_current_line())
+      command('set nohelix')
+      feed('d')
+      eq('  bravo', api.nvim_get_current_line())
+    end)
+
+    local function diagnostics()
+      exec_lua([[
+        local ns = vim.api.nvim_create_namespace('helix.baseline')
+        vim.diagnostic.set(ns, 0, {
+          {lnum=1,col=2,end_lnum=1,end_col=4,message='first'},
+          {lnum=3,col=1,end_lnum=3,end_col=3,message='second'},
+          {lnum=5,col=0,end_lnum=5,end_col=2,message='last'},
+        })
+        vim.diagnostic.config({jump={on_jump=function(d) vim.g.jumped_message=d.message end}})
+      ]])
+    end
+
+    it(
+      'jumps through real diagnostics with counts, boundaries, wrap and configured feedback',
+      function()
+        diagnostics()
+        feed('2]d')
+        eq({ 4, 1 }, api.nvim_win_get_cursor(0))
+        eq('second', api.nvim_get_var('jumped_message'))
+        feed('[d')
+        eq({ 2, 2 }, api.nvim_win_get_cursor(0))
+        feed('[d')
+        eq({ 6, 0 }, api.nvim_win_get_cursor(0))
+        feed('[D')
+        eq({ 2, 2 }, api.nvim_win_get_cursor(0))
+        feed(']D')
+        eq({ 6, 0 }, api.nvim_win_get_cursor(0))
+        feed(']D')
+        eq({ 6, 0 }, api.nvim_win_get_cursor(0))
+        exec_lua('vim.diagnostic.config({jump={wrap=false}})')
+        feed(']d')
+        eq({ 6, 0 }, api.nvim_win_get_cursor(0))
+        eq('', exec_lua('return vim.helix.get_state().count'))
+        eq({ { 5, 0, 5, 1, false } }, api.nvim_helix_get_state(0).selections)
+        feed('j')
+        eq({ 6, 0 }, api.nvim_win_get_cursor(0))
+      end
+    )
+
+    it(
+      'handles slow and nonrecursive prefixes safely without executing their last key as an edit',
+      function()
+        diagnostics()
+        command('set timeoutlen=10')
+        feed('[')
+        eq('[', exec_lua('return vim.helix.get_state().pending'))
+        feed('d')
+        eq({ 6, 0 }, api.nvim_win_get_cursor(0))
+        exec_lua([[vim.keymap.set('h', 'Q', ']d')]])
+        feed('Q')
+        eq({ 2, 2 }, api.nvim_win_get_cursor(0))
+        local before = api.nvim_helix_get_state(0).selections
+        feed('[x')
+        eq(before, api.nvim_helix_get_state(0).selections)
+        feed('3]<Esc>l')
+        eq({ 2, 3 }, api.nvim_win_get_cursor(0))
+        eq(
+          { 'alpha beta', '  bravo', 'charlie', 'delta', 'echo', 'foxtrot' },
+          api.nvim_buf_get_lines(0, 0, -1, true)
+        )
+      end
+    )
+
+    it('keeps literal find, replace and surround arguments despite editor defaults', function()
+      text({ 'a=d [word] z' })
+      feed('f=')
+      eq({ 'a=' }, selected())
+      feed(';r=')
+      eq('a=d [word] z', api.nvim_get_current_line())
+      feed('f[;lmi[')
+      eq({ 'word' }, selected())
+    end)
+
+    it('delegates language actions to Neovim and uses primary-cursor jump semantics', function()
+      exec_lua([[
+        vim.g.language_actions = {}
+        for _, method in ipairs({'definition','declaration','type_definition','references','implementation','hover','rename','code_action'}) do
+          vim.lsp.buf[method] = function()
+            local actions=vim.g.language_actions
+            actions[#actions+1]=method
+            vim.g.language_actions=actions
+            if method=='definition' then vim.api.nvim_win_set_cursor(0,{4,1}) end
+          end
+        end
+        vim.api.nvim_helix_set_selections(0,{{0,0,0,5,false},{1,2,1,7,true}},2,true)
+      ]])
+      feed('gd')
+      eq({ { 3, 1, 3, 2, false } }, api.nvim_helix_get_state(0).selections)
+      feed('gDgygrgi<Space>k<Space>r<Space>a')
+      eq({
+        'definition',
+        'declaration',
+        'type_definition',
+        'references',
+        'implementation',
+        'hover',
+        'rename',
+        'code_action',
+      }, api.nvim_get_var('language_actions'))
+      eq('', exec_lua('return vim.helix.get_state().pending'))
+    end)
+
+    it('formats oriented selections through the native LSP range API', function()
+      exec_lua([[
+        vim.lsp.buf.format=function(opts) vim.g.format_options=opts end
+        vim.api.nvim_helix_set_selections(0,{{0,0,0,5,false},{1,2,1,7,true}},2,true)
+      ]])
+      local before = api.nvim_helix_get_state(0)
+      feed('=')
+      eq({
+        range = {
+          { start = { 1, 0 }, ['end'] = { 1, 5 } },
+          { start = { 2, 2 }, ['end'] = { 2, 7 } },
+        },
+      }, api.nvim_get_var('format_options'))
+      eq(before.selections, api.nvim_helix_get_state(0).selections)
+      eq(before.primary, api.nvim_helix_get_state(0).primary)
+    end)
+
+    it('uses native buffer navigation and leaves no stale counts when changing buffers', function()
+      local first = api.nvim_get_current_buf()
+      command('enew')
+      local second = api.nvim_get_current_buf()
+      feed('gp')
+      eq(first, api.nvim_get_current_buf())
+      feed('gn')
+      eq(second, api.nvim_get_current_buf())
+      feed('ga')
+      eq(first, api.nvim_get_current_buf())
+      feed('3gggs')
+      eq({ 3, 0 }, api.nvim_win_get_cursor(0))
+      feed('ggjjj')
+      eq({ 4, 0 }, api.nvim_win_get_cursor(0))
+      feed('10000gg')
+      eq({ 6, 0 }, api.nvim_win_get_cursor(0))
+      feed('2gggs')
+      eq({ 2, 2 }, api.nvim_win_get_cursor(0))
+    end)
+
+    it('uses the native jumplist when returning from diagnostic jumps', function()
+      diagnostics()
+      command('clearjumps')
+      feed(']d')
+      eq({ 2, 2 }, api.nvim_win_get_cursor(0))
+      feed('<C-o>')
+      eq({ 1, 0 }, api.nvim_win_get_cursor(0))
+      feed('<C-i>')
+      eq({ 2, 2 }, api.nvim_win_get_cursor(0))
+      eq('h', api.nvim_get_mode().mode)
+    end)
+
+    it('lets user mappings override defaults across disable, re-enable and setup', function()
+      exec_lua([[vim.keymap.set('h', '[d', function() vim.g.custom_diagnostic=true end)]])
+      command('set nohelix | set helix')
+      exec_lua('vim.helix.setup()')
+      feed('[d')
+      eq(true, api.nvim_get_var('custom_diagnostic'))
+      eq('alpha beta', api.nvim_get_current_line())
+    end)
+
+    it('prepares which-key explicitly and preserves user options and unrelated modes', function()
+      local result = exec_lua([[
+        local util={mapmode=function(m) return m=='i' and 'i' or 'n' end,in_macro=function() return vim.g.in_macro==true end}
+        local state={safe=function(change) return false,change end}
+        package.loaded['which-key.util'],package.loaded['which-key.state']=util,state
+        local options={delay=0,triggers={{'<auto>',mode='nxso'}},spec={{'<Space>f',group='Files'}}}
+        local adapted=vim.helix.compat.which_key(options)
+        local once=util.mapmode
+        vim.helix.compat.which_key(adapted)
+        local normal=util.mapmode('n')
+        local insert=util.mapmode('i')
+        local helix=util.mapmode('hv')
+        local safe=state.safe('h:hv')
+        local other=state.safe('i:h')
+        vim.g.in_macro=true
+        local macro=state.safe('h:hv')
+        return {adapted.triggers[1].mode,options.triggers[1].mode,adapted.delay,normal,insert,helix,safe,other,macro,util.mapmode==once}
+      ]])
+      eq({ 'nxsoh', 'nxso', 0, 'n', 'i', 'h', true, false, false, true }, result)
+    end)
+  end)
+
   describe('view commands', function()
     before_each(function()
       Screen.new(40, 12)
@@ -634,7 +848,7 @@ describe('native Helix mode', function()
     command('nnoremap w dd')
     command('set helix')
     eq('h', api.nvim_get_mode().mode)
-    eq({}, api.nvim_get_keymap('h'))
+    eq('', n.fn.maparg('w', 'h'))
     feed('w')
     eq({ 'one ' }, selected())
     eq('one two three', api.nvim_get_current_line())
@@ -1891,6 +2105,7 @@ describe('native Helix mode', function()
     eq(
       true,
       exec_lua([[
+      local mappings = vim.api.nvim_get_keymap('h')
       for _, opts in ipairs({
         {enabled='yes'}, {surrounds={c={'', '*/'}}},
         {surrounds={c={'/*', '*/', 'extra'}}},
@@ -1900,7 +2115,7 @@ describe('native Helix mode', function()
       }) do
         assert(not pcall(vim.helix.setup, opts))
         assert(not vim.o.helix)
-        assert(#vim.api.nvim_get_keymap('h') == 0)
+        assert(vim.deep_equal(mappings, vim.api.nvim_get_keymap('h')))
       end
       assert(not pcall(vim.helix.textobject, ''))
       return true

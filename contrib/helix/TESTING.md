@@ -1,5 +1,40 @@
 # Verification record
 
+Editor-integration baseline (2026-10-18) makes shared diagnostics, LSP actions,
+buffer/file navigation, formatting and jump history default h mappings. Ten
+additional tests enable only `set helix`: discoverable defaults, normal-mode
+isolation, real diagnostics with counts/wrap/boundaries/configuration, slow and
+nonrecursive prefixes, literal arguments, LSP delegation, oriented formatting,
+buffer/jump navigation, user overrides and the explicit which-key adapter.
+The dedicated Helix suite now contains 137 tests.
+
+Local macOS ARM64 verification:
+
+* Nix package build: parser checks, all 137 Helix tests, installed exon/ex/nvim
+  smoke checks (including counted diagnostic defaults) passed.
+* Full editor suite: 876 passed, 5 existing platform/policy skips.
+* Full API suite: 1,481 passed, 5 existing platform/policy skips.
+* Pinned plugin check: which-key h/hv cancellation, fast/slow Telescope
+  shortcuts, ui-select choice, Flash jump and diagnostic navigation passed,
+  both with existing checkouts and with a fresh fetch of the pinned revisions.
+* The personal configuration was separately exercised with stock Neovim and
+  the new Exon: Catppuccin startup, automatic LuaLS completion, actual file
+  formatting, completion fallback after detach, Telescope, Go tabs and four
+  lines of cursor margin passed. Shortcut hints also passed with the installed
+  older Exon using its configuration fallback. These used isolated state and an
+  attached offscreen UI, not the user's running editor or a system activation.
+
+The source regression harness uses compiled test fixtures and fresh XDG roots;
+an installed Nix package alone does not contain `shell-test` or the upstream xxd
+test binary. An initial broader run without those fixtures failed; the complete
+editor suite passed after supplying them. The API suite likewise passed in a
+fresh XDG root, avoiding a previous test's leftover package fixture.
+
+The everyday contract and ownership policy are in [REVIEW.md](REVIEW.md).
+`plugin-smoke.lua` and `plugins.json` make the listed plugin gate reproducible;
+the native CI workflow runs it on Linux and macOS. This local record does not
+claim that a new remote CI run or arbitrary third-party plugins have passed.
+
 Register-paste follow-up (2026-10-18) adds eleven regressions for deleted/yanked
 lines, p/P alignment, trailing-newline inference for external and mixed
 fragments, unnamed clipboard routing and external changes, counts, final/empty

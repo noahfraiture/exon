@@ -14,6 +14,65 @@ Dot-repeat and macro parity are optional future scope. They do not block this
 baseline. Pickers, buffer management, Git, UI preferences and language providers
 remain ordinary Neovim configuration/plugins.
 
+## Everyday editor contract
+
+The baseline is Helix selection-first editing with Neovim's ordinary editor
+services and explicitly supported plugins. Enable it with only `set helix` or
+`vim.o.helix = true`. The example init file is not required to repair the mode.
+
+| Workflow | Owner and acceptance check |
+| --- | --- |
+| Motions, selection direction, multiple selections, insert/change/delete | Native selections and bundled selection commands; real input, Unicode, window ownership and undo tests |
+| Paste and clipboard | Helix's newline-content rule and Neovim providers; linewise/inline, named registers, external changes and multicursor tests |
+| Undo/redo and indentation | Native history and insertion; comparison with ordinary Neovim, selection restoration and shared-line indentation tests |
+| Mouse, wheel, scrolling, centering and scroll margins | Neovim geometry; attached-screen tests including wrapped lines, folds, splits and secondary selections |
+| Diagnostics | `[d`, `]d`, `[D`, `]D` call `vim.diagnostic.jump`; counts, wrap, configured feedback and native jump history are tested without an LSP or example config |
+| Language navigation and actions | `gd`, `gD`, `gy`, `gr`, `gi`, Space k/r/a call the existing LSP APIs at the primary cursor; a configured server still supplies language support |
+| Formatting | `=` passes oriented selections to Neovim's formatting API; file formatting remains an ordinary configurable action |
+| Files, buffers and jumps | `gf`, `gn`, `gp`, `ga`, Ctrl-o/Ctrl-i use native file/buffer/jumplist commands; personal picker shortcuts stay configurable |
+| Plugin windows | Pickers and other special buffers use normal Neovim modes, then return to the document's Helix mode |
+| Known plugins | Pinned which-key, Telescope, ui-select and Flash run together in an attached UI; quick/slow shortcuts, h/hv cancellation, picking and diagnostics are exercised |
+| Ordinary Neovim | Disabling Helix retains n/x/i mappings and native behavior; normal-mode editing mappings never implicitly become Helix commands |
+
+Diagnostic jumps and other external cursor jumps intentionally replace the
+selection collection with a primary cursor. View-only commands preserve the
+collection. This distinction is part of the contract, rather than a guess by
+each plugin. Native jump history restores positions, not a Helix selection stack.
+
+Default shared actions live in `runtime/lua/vim/helix/defaults.lua` and are
+installed during runtime initialization. Their mappings have descriptions for
+discovery tools. The input adapter uses the same table after a prefix timeout
+or nonrecursive mapping, consumes counts once, and cancels unknown prefixes
+without executing the trailing key as an editing command. User maps can override
+defaults. Space f stays available for personal file picker prefixes; formatting
+uses `=`.
+
+## Mapping and plugin policy
+
+Keep the real h/hv modes: exposing them as Vim normal mode would make plugin
+assumptions and selection semantics disagree. Existing n maps remain n maps;
+configure a shared action with `vim.keymap.set({'n', 'h'}, ...)` when appropriate.
+Do not copy arbitrary normal-mode editing mappings or fall through to Vim
+operators for unknown Helix commands.
+
+Exon owns small, explicit adapters for supported plugins in `vim.helix.compat`.
+For which-key, pass ordinary options through
+`vim.helix.compat.which_key(options)` before its setup. This handles mode
+recognition, h/hv transitions and h triggers, without loading the plugin unless
+requested. User configuration owns its preferred groups, appearance and delays.
+Flash and Telescope use ordinary h mappings and need no internal adapter for the
+tested workflows. Syntax-node selection still requires the matching parser.
+
+`contrib/helix/plugins.json` pins the tested plugin revisions. Run
+`exon --headless -u NONE -i NONE -l contrib/helix/plugin-smoke.lua` to fetch those
+pins into a temporary directory and test the workflows. An optional directory
+argument uses existing checkouts offline and verifies their revisions. CI runs
+this alongside the native/editor/API/completion suites on Linux and macOS.
+
+These gates establish the listed baseline, not complete Helix parity or
+compatibility with arbitrary plugins. New features and upstream upgrades must
+preserve these workflows, not just pass a test for the newly changed command.
+
 ## Ownership and reuse
 
 * Helix owns its real `h`/`hv` mode, mapping namespace and half-open selection

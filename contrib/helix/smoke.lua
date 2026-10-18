@@ -50,6 +50,30 @@ local ok, err = xpcall(function()
   wait_for(function()
     return request('nvim_get_mode').mode == 'h'
   end)
+  assert(
+    request('nvim_exec_lua', [[return vim.fn.maparg('[d', 'h', false, true).desc]], {})
+      == 'Previous diagnostic',
+    'installed runtime is missing Helix diagnostic defaults'
+  )
+  request('nvim_buf_set_lines', 0, 0, -1, true, { 'one', 'two', 'three', 'four' })
+  request(
+    'nvim_exec_lua',
+    [[
+    vim.diagnostic.set(vim.api.nvim_create_namespace('installed-baseline'),0,{
+      {lnum=1,col=0,message='first'}, {lnum=3,col=0,message='last'},
+    })
+  ]],
+    {}
+  )
+  input('2]d')
+  wait_for(function()
+    return request('nvim_win_get_cursor', 0)[1] == 4
+  end)
+  input('[D')
+  wait_for(function()
+    return request('nvim_win_get_cursor', 0)[1] == 2
+  end)
+  request('nvim_exec_lua', [[vim.diagnostic.reset()]], {})
   request(
     'nvim_exec_lua',
     [[

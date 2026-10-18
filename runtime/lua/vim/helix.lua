@@ -3,7 +3,8 @@
 --- against a temporary snapshot and submit native editing transactions.
 local api = vim.api
 local commands = require('vim.helix.commands')
-local M = {}
+local defaults = require('vim.helix.defaults')
+local M = { compat = require('vim.helix.compat') }
 local parsers = {}
 local registers = {}
 local last_search
@@ -13,6 +14,20 @@ local configuration = { surrounds = {} }
 function M._pending_argument()
   local parser = parsers[api.nvim_get_current_win()]
   return parser ~= nil and parser.buffer == api.nvim_get_current_buf() and parser.pending ~= ''
+end
+
+--- Shared editor command entry point, also used by default h-mode mappings.
+--- Consume the Helix count once; Vim's v:count does not represent this mode.
+--- @private
+function M._run_builtin(lhs)
+  local binding = assert(defaults.bindings[lhs], 'Unknown Helix command: ' .. lhs)
+  local parser = parsers[api.nvim_get_current_win()]
+  local count = parser and parser.buffer == api.nvim_get_current_buf() and tonumber(parser.count)
+    or 1
+  if parser then
+    parser.pending, parser.count, parser.register_name = '', '', nil
+  end
+  binding[1](math.max(1, count or 1))
 end
 
 --- @class vim.helix.Opts
@@ -456,6 +471,13 @@ function M._dispatch(key, mouse)
     return 'native'
   end
   local e, parser, batches = model(key == 'p' or key == 'P' or key == 'R')
+  -- A prefix may already have reached the command parser after a mapping
+  -- timeout, or via a nonrecursive user mapping. Use the same shared actions.
+  local lhs = (e.pending == ' ' and '<Space>' or e.pending) .. key
+  if defaults.bindings[lhs] then
+    M._run_builtin(lhs)
+    return
+  end
   if e.pending == 'z' or e.pending == 'Z' then
     local action = view_keys[key]
     e.pending = e.pending == 'Z' and key ~= '<Esc>' and key ~= '<C-c>' and 'Z' or ''

@@ -36,6 +36,29 @@ Neovim Insert mode and reports "i". Use the "h" mapping namespace: >lua
     vim.keymap.set('h', '<Space>w', '<Cmd>write<CR>')
     vim.keymap.set('h', 'Q', function() vim.helix.textobject('m') end)
 <
+Shared editor defaults require no example configuration:
+  [d / ]d       previous/next diagnostic (counts and wrapping)
+  [D / ]D       first/last diagnostic (without wrapping)
+  gd / gD       definition/declaration
+  gy / gr / gi  type definition/references/implementation
+  Space k/r/a   documentation/rename/code action at the primary cursor
+  =             format selections through Neovim's LSP API
+  gn / gp / ga  next/previous/alternate buffer
+  gf            open file under cursor
+  Ctrl-o/Ctrl-i previous/next position in Neovim's native jumplist
+Language actions still require a configured server. Diagnostic feedback follows
+vim.diagnostic.config(). External cursor jumps replace the selection collection
+with a primary cursor. View commands preserve the collection. User h mappings
+can override defaults; arbitrary n mappings are not inherited.
+
+which-key support is explicit and bundled with Exon: >lua
+    require('which-key').setup(vim.helix.compat.which_key({}))
+<
+The adapter recognizes h/hv and extends normal-mode triggers with h. Ordinary
+which-key options still configure its groups and appearance. Telescope/Flash
+actions can use h mappings without internal adapters for the tested workflows;
+their special buffers continue to use ordinary Neovim modes.
+
 mim selects inside the closest enclosing surround. mi( selects inside
 parentheses. ma/ includes the surrounding slash delimiters. miw selects a word.
 mr reads the old and new pair keys: mr"' changes "hello" into 'hello'; mr([

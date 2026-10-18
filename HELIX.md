@@ -116,7 +116,8 @@ two
 * `:set nohelix` returns to ordinary Vim editing. `:set helix` enables it again.
 
 The `contrib/helix/init.lua` configuration adds buffer navigation, save/quit,
-file browsing and LSP actions. Its buffer navigation and textobjects are covered
+file browsing and optional LSP aliases. The core supplies language navigation
+and diagnostic defaults independently. Its buffer navigation and textobjects are covered
 by the native functional tests. It enables built-in LSP completion when an
 attached language server supports completion; it does not install servers.
 
@@ -188,6 +189,27 @@ Regular expressions currently use Neovim's regex syntax.
 Insert mode uses the existing `i` namespace and real Insert-mode events.
 Command arguments are read literally: remapping `i` or `w` does not change
 `miw`, and remapping `(` does not change the delimiter read by `ms(`.
+
+Everyday shared actions are built in, including `[d`/`]d` and `[D`/`]D`
+diagnostics, `gd`/`gD`/`gy`/`gr`/`gi` language navigation, Space k/r/a for
+documentation/rename/code actions, `=` selection formatting, `gn`/`gp` buffers,
+`ga` alternate buffer, `gf` file under cursor and Ctrl-o/Ctrl-i jump history.
+Language actions require a configured server. Diagnostic display follows
+`vim.diagnostic.config()`. These defaults do not require the example init file.
+`gs` goes to the first non-whitespace character; a count before `gg` selects a
+line number. Personal mappings can override the defaults.
+
+For which-key, use the bundled adapter rather than patching its internals in
+your config:
+
+```lua
+require('which-key').setup(vim.helix.compat.which_key({}))
+```
+
+Telescope and Flash actions can be mapped in `h` with ordinary `vim.keymap.set`.
+Your groups, theme, plugins and language providers remain your preferences.
+See the [everyday editor contract](contrib/helix/REVIEW.md#everyday-editor-contract)
+for ownership, acceptance checks and the plugin compatibility boundary.
 
 Defaults already include `ms(`, `ms[`, `ms"`, `ms/`, etc.: `ms` reads its next
 character. The following setup only adds custom pairs and optional shortcuts:

@@ -39,18 +39,9 @@ map('<Space>b', function()
   end)
 end, 'Buffers')
 
-map('gd', vim.lsp.buf.definition, 'Definition')
-map('gr', vim.lsp.buf.references, 'References')
-map('<Space>k', vim.lsp.buf.hover, 'Documentation')
-map('<Space>r', vim.lsp.buf.rename, 'Rename symbol')
-map('<Space>a', vim.lsp.buf.code_action, 'Code actions at primary cursor')
+-- Language navigation, diagnostics and = formatting are native defaults.
+-- This optional alias is an example preference, not required integration.
 map('<Space>f', vim.helix.format, 'Format selections')
-map(']d', function()
-  vim.diagnostic.jump({ count = 1, float = true })
-end, 'Next diagnostic')
-map('[d', function()
-  vim.diagnostic.jump({ count = -1, float = true })
-end, 'Previous diagnostic')
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('helix.example.lsp', { clear = true }),

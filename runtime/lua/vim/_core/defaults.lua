@@ -2,6 +2,9 @@
 
 local nvim_on = require('vim._core.util').nvim_on
 
+-- Exon's shared actions have their own defaults; n-mode maps remain isolated.
+require('vim.helix.defaults').install()
+
 --- Default user commands
 do
   vim.api.nvim_create_user_command('Inspect', function(cmd)

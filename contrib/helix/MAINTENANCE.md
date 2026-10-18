@@ -22,6 +22,12 @@ remote for Neovim updates: `origin/master` contains Exon, while
   cursor jumps in Helix normal mode retain their primary-cursor contract.
 * Bundled Lua implements selection policy and thin native range adapters for
   indentation/joining. `contrib/helix/init.lua` is optional configuration.
+* `vim.helix.defaults` owns shared editor bindings and their descriptions.
+  Both default mappings and the raw-key dispatcher use the same actions; do
+  not add basic diagnostics/navigation only to the example config.
+* `vim.helix.compat` owns explicit, version-tested plugin adapters. Keep mode
+  reporting truthful and run `contrib/helix/plugin-smoke.lua` with the pinned
+  `plugins.json` revisions when changing input, mappings or those adapters.
 * Native text undo owns history; Helix adds session-local oriented selection
   metadata. Native Insert cursor movements keep upstream undo boundaries.
 * Mouse geometry and scrolling remain in upstream `mouse.c`. Two adapters adopt

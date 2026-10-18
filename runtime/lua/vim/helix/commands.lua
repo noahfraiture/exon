@@ -437,10 +437,15 @@ function Engine:move(key, count)
     return
   end
   local text = self.text
+  local line_target
+  if key == 'gg' then
+    local last_row = M.position(text, #text)
+    line_target = M.offset(text, math.min((count or 1) - 1, last_row), 0)
+  end
   for _, s in ipairs(self.selections) do
     local p = self:head(s)
     local goal = s.goal
-    for _ = 1, count or 1 do
+    for _ = 1, key == 'gg' and 1 or (count or 1) do
       if key == 'h' then
         p = M.prev(text, p)
       elseif key == 'l' then
@@ -460,8 +465,11 @@ function Engine:move(key, count)
       elseif key == 'gl' or key == '<End>' then
         local a, b = line_bounds(text, p)
         p = b > a and M.prev(text, b) or a
+      elseif key == 'gs' then
+        local a, b = line_bounds(text, p)
+        p = a + #(text:sub(a + 1, b):match('^%s*') or '')
       elseif key == 'gg' then
-        p = 0
+        p = line_target
       elseif key == 'ge' then
         p = M.prev(text, #text)
       end
@@ -864,7 +872,15 @@ function Engine:input(key)
       self.count = tostring(math.min((tonumber(self.count) or 0) * 10 + tonumber(key), 10000))
       return
     end
-    if key == 'm' or key == 'g' or key == 'r' or key:match('^[fFtT]$') then
+    if
+      key == 'm'
+      or key == 'g'
+      or key == 'r'
+      or key == '['
+      or key == ']'
+      or key == ' '
+      or key:match('^[fFtT]$')
+    then
       self.pending = key
       return
     end
