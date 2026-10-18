@@ -81,6 +81,203 @@ describe('native Helix mode', function()
     eq({ '/abc/' }, selected())
   end)
 
+  it('does not retain the previous word first character when moving backward', function()
+    text({ 'helos sadf saf d' })
+    command('set helix')
+    api.nvim_helix_set_selections(0, { { 0, 11, 0, 14, true } }, 1, false)
+    eq({ 'saf' }, selected())
+    eq({ 1, 11 }, api.nvim_win_get_cursor(0))
+    feed('b')
+    eq({ 'sadf ' }, selected())
+    eq({ { 0, 6, 0, 11, true } }, api.nvim_helix_get_state(0).selections)
+    eq({ 1, 6 }, api.nvim_win_get_cursor(0))
+    feed('cX<Esc>')
+    eq('helos Xsaf d', api.nvim_get_current_line())
+    feed('u')
+    eq('helos sadf saf d', api.nvim_get_current_line())
+    eq({ 'sadf ' }, selected())
+    feed('b')
+    eq({ 'helos ' }, selected())
+    feed('bb')
+    eq({ 'helos ' }, selected())
+  end)
+
+  it('does not retain the previous word last character when moving to word ends', function()
+    text({ 'one two three' })
+    command('set helix')
+    feed('e')
+    eq({ 'one' }, selected())
+    feed('e')
+    eq({ ' two' }, selected())
+    feed('e')
+    eq({ ' three' }, selected())
+    feed('eee')
+    eq({ ' three' }, selected())
+  end)
+
+  it('clears the previous word first character on screen when moving backward', function()
+    local screen = Screen.new(32, 5)
+    text({ 'helos sadf saf d' })
+    command('set helix noshowmode')
+    feed('wwwbb')
+    screen:expect([[
+      helos {17:^sadf }saf d                |
+      {1:~                               }|*3
+                                      |
+    ]])
+    feed('b')
+    screen:expect([[
+      {17:^helos }sadf saf d                |
+      {1:~                               }|*3
+                                      |
+    ]])
+  end)
+
+  it('replaces word selections when changing direction in normal mode', function()
+    text({ 'one two three four' })
+    command('set helix')
+    for _, step in ipairs({
+      { 'w', 'one ', false },
+      { 'w', 'two ', false },
+      { 'b', 'two ', true },
+      { 'b', 'one ', true },
+      { 'w', 'one ', false },
+      { 'e', ' two', false },
+      { 'e', ' three', false },
+      { 'b', 'three', true },
+      { 'b', 'two ', true },
+    }) do
+      feed(step[1])
+      eq('h', api.nvim_get_mode().mode)
+      eq({ step[2] }, selected())
+      eq(step[3], api.nvim_helix_get_state(0).selections[1][5])
+    end
+  end)
+
+  it('applies word counts to the final motion and preserves ranges at file boundaries', function()
+    text({ 'one two three four' })
+    command('set helix')
+    feed('3w')
+    eq({ 'three ' }, selected())
+    api.nvim_win_set_cursor(0, { 1, 14 })
+    feed('3b')
+    eq({ 'one ' }, selected())
+    feed('99b')
+    eq({ 'one ' }, selected())
+    api.nvim_win_set_cursor(0, { 1, 0 })
+    feed('3e')
+    eq({ ' three' }, selected())
+    feed('99e')
+    eq({ ' four' }, selected())
+    feed('e')
+    eq({ ' four' }, selected())
+  end)
+
+  it('keeps the fixed anchor only when explicitly extending word selections', function()
+    text({ 'one two three four' })
+    command('set helix')
+    feed('v3w')
+    eq('hv', api.nvim_get_mode().mode)
+    eq({ 'one two three ' }, selected())
+    api.nvim_win_set_cursor(0, { 1, 14 })
+    feed('v3b')
+    eq('hv', api.nvim_get_mode().mode)
+    eq({ 'one two three f' }, selected())
+  end)
+
+  it('replaces punctuation and WORD selections without retaining boundary characters', function()
+    text({ 'ab.cd ef' })
+    command('set helix')
+    for _, value in ipairs({ 'ab', '.', 'cd', ' ef' }) do
+      feed('e')
+      eq({ value }, selected())
+    end
+    for _, value in ipairs({ 'ef', 'cd ', '.', 'ab' }) do
+      feed('b')
+      eq({ value }, selected())
+    end
+    text({ 'one-two three/four five' })
+    for _, value in ipairs({ 'one-two ', 'three/four ' }) do
+      feed('W')
+      eq({ value }, selected())
+    end
+    for _, value in ipairs({ 'three/four ', 'one-two ' }) do
+      feed('B')
+      eq({ value }, selected())
+    end
+    for _, value in ipairs({ 'one-two', ' three/four', ' five' }) do
+      feed('E')
+      eq({ value }, selected())
+    end
+  end)
+
+  it('keeps Unicode graphemes outside the next word selection', function()
+    text({ 'été bleu 👩‍💻 fin' })
+    command('set helix')
+    feed('wwww')
+    for _, value in ipairs({ 'fin', '👩‍💻 ', 'bleu ', 'été ' }) do
+      feed('b')
+      eq({ value }, selected())
+    end
+    for _, value in ipairs({ 'été', ' bleu', ' 👩‍💻', ' fin' }) do
+      feed('e')
+      eq({ value }, selected())
+    end
+  end)
+
+  it('keeps word motion ranges on destination lines across indentation and blank lines', function()
+    text({ 'one', '  two', '', 'three' })
+    command('set helix')
+    api.nvim_win_set_cursor(0, { 4, 0 })
+    for _, value in ipairs({ 'two', '  ', 'one' }) do
+      feed('b')
+      eq({ value }, selected())
+    end
+    for _, value in ipairs({ 'one', '  two', 'three' }) do
+      feed('e')
+      eq({ value }, selected())
+    end
+  end)
+
+  it('changes backward word selections at every cursor without consuming the next word', function()
+    text({ 'one two three', 'four five six' })
+    command('set helix')
+    api.nvim_helix_set_selections(0, { { 0, 8, 0, 9, false }, { 1, 10, 1, 11, false } }, 2, false)
+    feed('b')
+    eq({ 'two ', 'five ' }, selected())
+    eq(2, api.nvim_helix_get_state(0).primary)
+    feed('cX<Esc>')
+    eq({ 'one Xthree', 'four Xsix' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    feed('u')
+    eq({ 'one two three', 'four five six' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    eq({ 'two ', 'five ' }, selected())
+    eq(2, api.nvim_helix_get_state(0).primary)
+  end)
+
+  it('clears the previous word last character on screen when moving forward', function()
+    local screen = Screen.new(32, 5)
+    text({ 'one two three' })
+    command('set helix noshowmode')
+    feed('ee')
+    screen:expect([[
+      one{17: tw^o} three                   |
+      {1:~                               }|*3
+                                      |
+    ]])
+  end)
+
+  it('keeps word motions valid on empty buffers and single graphemes', function()
+    command('set helix')
+    for _, value in ipairs({ '', 'a', '👩‍💻' }) do
+      text({ value })
+      for _, key in ipairs({ 'w', 'b', 'e', 'W', 'B', 'E' }) do
+        feed(key)
+        eq({ value }, selected())
+        eq({ 1, 0 }, api.nvim_win_get_cursor(0))
+      end
+    end
+  end)
+
   it('changes text through native Insert mode and restores selections with undo', function()
     text({ 'outer([hello])' })
     command('set helix')

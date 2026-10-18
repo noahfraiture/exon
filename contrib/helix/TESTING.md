@@ -24,11 +24,20 @@ The follow-up architecture review adds regressions for literal command
 arguments under mappings, native Alt shortcuts, Insert cursor placement and
 empty-line cursor preservation, native-control fallback/undo, Unicode case
 conversion, parser cancellation and special delimiter keys. The dedicated
-suite now contains 47 tests, including native Unicode word classes and
+suite now contains 59 tests, including native Unicode word classes and
 'iskeyword'. A colorscheme-reload control also passes without
 a production change. See [REVIEW.md](REVIEW.md) for the feature inventory and
 the architectural work still required; passing these tests does not establish
 complete Helix parity.
+
+Word-boundary regressions cover the reported backward selection from `saf`
+to `sadf `, including the actual screen highlight and change/undo behavior.
+The same checks cover forward word ends, direction changes, counts, explicit
+selection extension, WORD motions, punctuation, Unicode graphemes, indentation,
+blank lines and multicursor edits. The backward/forward boundary and screen
+tests failed before the fix; they verify that the old cursor character does
+not remain in the replacement selection. The installed-package smoke test also
+checks the reported backward selection, replacement and undo through real input.
 
 The [Native Helix workflow run](https://github.com/noahfraiture/exon/actions/runs/38859243012)
 passed every job. It built the executable and matching runtime from this source.

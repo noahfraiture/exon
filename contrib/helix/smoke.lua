@@ -60,6 +60,20 @@ local ok, err = xpcall(function()
   ]],
     {}
   )
+  request('nvim_buf_set_lines', 0, 0, -1, true, { 'helos sadf saf d' })
+  request('nvim_helix_set_selections', 0, { { 0, 11, 0, 14, true } }, 1, false)
+  input('b')
+  wait_for(function()
+    return vim.deep_equal(request('nvim_helix_get_state', 0).selections, { { 0, 6, 0, 11, true } })
+  end)
+  input('cX<Esc>')
+  wait_for(function()
+    return request('nvim_get_current_line') == 'helos Xsaf d'
+  end)
+  input('u')
+  wait_for(function()
+    return request('nvim_get_current_line') == 'helos sadf saf d'
+  end)
   request('nvim_buf_set_lines', 0, 0, -1, true, { 'outer([hello])' })
   request('nvim_win_set_cursor', 0, { 1, 8 })
   input('mimcworld<Esc>')

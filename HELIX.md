@@ -107,6 +107,9 @@ two
 * Place the cursor inside `abc`. Type `ma/`: `/abc/` should be selected.
 * At the beginning of `one two three`, press `w` repeatedly: the selection
   advances through all three words. It does not get stuck on a space.
+  Then press `bb`: `two ` should be selected, without the first `t` from
+  `three`. Press `ee`: ` three` should be selected, without the last `o`
+  from `two`.
 * At the `o` in the last standalone `one`, type `C`: another selection appears
   on the next line. `miwcX<Esc>` changes both words. `u` restores both words
   and both selections. `,` keeps only the primary selection.

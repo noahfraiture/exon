@@ -315,52 +315,71 @@ function Engine:offset_column(row, column)
   end
   return p
 end
-function Engine:move_word_start(key, count)
-  local text, long = self.text, key == 'W'
+function Engine:move_word(key, count)
+  local text = self.text
+  local backward = key == 'b' or key == 'B'
+  local ending = key == 'e' or key == 'E'
+  local long = key == 'W' or key == 'B' or key == 'E'
   local function category(p)
     if text:sub(p + 1, p + 1) == '\n' then
       return -1
     end
     return class(text, p, long)
   end
+  local function advance(p)
+    return backward and M.prev(text, p) or M.next(text, p)
+  end
+  local function ahead(p)
+    return backward and M.prev(text, p) or p
+  end
+  local function in_bounds(p)
+    return (backward and p > 0) or (not backward and p < #text)
+  end
   for _, s in ipairs(self.selections) do
     local endpoint = s.backward and s.start or s.finish
-    if endpoint < #text then
+    if (backward and endpoint > 0) or (not backward and endpoint < #text) then
       local cursor = self:head(s)
-      local anchor, head = cursor, M.next(text, cursor)
+      local anchor = backward and M.next(text, cursor) or cursor
+      local head = backward and cursor or M.next(text, cursor)
       for _ = 1, count do
-        if head >= #text then
+        if not in_bounds(head) then
           break
         end
-        local previous = M.prev(text, head)
-        -- Newline boundaries start a new word selection on the following line.
-        while head < #text and category(head) == -1 do
-          previous, head = head, M.next(text, head)
+        local previous = category(backward and head or M.prev(text, head))
+        -- Newline crossings start a selection on the destination line.
+        while in_bounds(head) and category(ahead(head)) == -1 do
+          previous, head = -1, advance(head)
         end
-        if category(previous) == -1 then
+        if previous == -1 then
           anchor = head
         end
         local start = head
-        while head < #text do
-          local current = category(head)
-          local boundary = category(previous) ~= current and current ~= 0
+        while in_bounds(head) do
+          local current = category(ahead(head))
+          local boundary = previous ~= current
+            and (
+              (backward or ending) and (previous > 0 or current == -1)
+              or (not backward and not ending and current ~= 0)
+            )
           if boundary then
             if head == start then
+              -- A new word replaces the old cursor cell instead of retaining it.
               anchor = head
             else
               break
             end
           end
-          previous, head = head, M.next(text, head)
+          previous, head = current, advance(head)
         end
       end
       if self.mode == 'select' then
         local fixed = s.backward and M.prev(text, s.finish) or s.start
-        local target = head > anchor and M.prev(text, head) or head
+        local target = not backward and head > anchor and M.prev(text, head) or head
         s.start, s.finish, s.backward =
           math.min(fixed, target), M.next(text, math.max(fixed, target)), target < fixed or nil
       else
-        s.start, s.finish, s.backward = anchor, head, nil
+        s.start, s.finish, s.backward =
+          math.min(anchor, head), math.max(anchor, head), head < anchor or nil
       end
       s.goal = nil
     end
@@ -368,13 +387,13 @@ function Engine:move_word_start(key, count)
   self:normalize()
 end
 function Engine:move(key, count)
-  if key == 'w' or key == 'W' then
-    self:move_word_start(key, count or 1)
+  if key:match('^[wWbBeE]$') then
+    self:move_word(key, count or 1)
     return
   end
   local text = self.text
   for _, s in ipairs(self.selections) do
-    local original, p = self:head(s), self:head(s)
+    local p = self:head(s)
     local goal = s.goal
     for _ = 1, count or 1 do
       if key == 'h' then
@@ -391,24 +410,6 @@ function Engine:move(key, count)
             p = target
           end
         end
-      elseif key == 'b' or key == 'B' then
-        p = M.prev(text, p)
-        while p > 0 and class(text, p, key == 'B') == 0 do
-          p = M.prev(text, p)
-        end
-        local cls = class(text, p, key == 'B')
-        while p > 0 and class(text, M.prev(text, p), key == 'B') == cls do
-          p = M.prev(text, p)
-        end
-      elseif key == 'e' or key == 'E' then
-        p = M.next(text, p)
-        while p < #text and class(text, p, key == 'E') == 0 do
-          p = M.next(text, p)
-        end
-        local cls = class(text, p, key == 'E')
-        while p < #text and class(text, M.next(text, p), key == 'E') == cls do
-          p = M.next(text, p)
-        end
       elseif key == 'gh' or key == '<Home>' then
         p = line_bounds(text, p)
       elseif key == 'gl' or key == '<End>' then
@@ -420,9 +421,8 @@ function Engine:move(key, count)
         p = M.prev(text, #text)
       end
     end
-    local extend, word = self.mode == 'select', key:match('^[wWbBeE]$')
-    if extend or word then
-      local anchor = extend and (s.backward and M.prev(text, s.finish) or s.start) or original
+    if self.mode == 'select' then
+      local anchor = s.backward and M.prev(text, s.finish) or s.start
       local finish = M.next(text, math.max(anchor, p))
       s.start, s.finish, s.backward = math.min(anchor, p), finish, p < anchor or nil
     else
