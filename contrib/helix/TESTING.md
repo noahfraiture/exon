@@ -1,5 +1,13 @@
 # Verification record
 
+Register-paste follow-up (2026-10-18) adds eleven regressions for deleted/yanked
+lines, p/P alignment, trailing-newline inference for external and mixed
+fragments, unnamed clipboard routing and external changes, counts, final/empty
+lines, coincident insertion points, primary/direction retention and native
+undo/redo. A fake clipboard provider verifies that motions do not read it.
+The dedicated Helix suite now contains 127 tests. A local macOS ARM64 Nix build
+passed all 127 and the installed exon/ex/nvim configuration smoke checks.
+
 View follow-up (2026-10-18) adds seven regressions for native centering and
 alignment, folds/wrapped lines in a split, counted scrolling and paging,
 selection/primary retention and merging, sticky view mode, literal arguments,

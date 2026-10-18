@@ -49,6 +49,14 @@ all text and selections unchanged. Escape cancels either replacement argument.
 x selects lines; C adds a selection on the next line; comma keeps the primary.
 i/a/c insert/append/change at selections. u/U use native undo/redo.
 
+Register paste is linewise if any copied fragment ends with a line ending:
+p inserts below the selected lines, P above them. This is determined from the
+text, including external clipboard text, rather than how it was selected.
+A multiline fragment without a trailing newline stays characterwise. Counts
+repeat each pasted fragment; extra selections reuse the last fragment. R
+replaces selections directly. The default register follows 'clipboard'; an
+explicit register overrides it. Cursor motions do not poll clipboard providers.
+
 View commands use Neovim's existing viewport rules, including 'scrolloff',
 folding and wrapped lines. zz/zc center the cursor line; zt/zb align it at the
 top/bottom. zj/zk (or z then a down/up arrow) scroll down/up; a count before z

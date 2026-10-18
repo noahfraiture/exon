@@ -167,6 +167,17 @@ Paging keys also work after either prefix. Alignment preserves selections;
 scrolling preserves secondary selections and moves the primary only when native
 scrolling moves the cursor. Horizontal `zm` alignment is not implemented.
 
+Register paste follows Helix's content rule: if any copied fragment ends with a
+line ending, `p` inserts below the selected lines and `P` above them. `x` normally
+includes the newline, so deleting/yanking that selection produces linewise
+paste. The same rule applies to text from named registers and the system
+clipboard; a multiline fragment without a trailing newline stays characterwise.
+Paste counts repeat each fragment. With more selections than fragments, the
+last fragment is repeated. `R` still replaces selections directly.
+The default register respects Neovim's `clipboard=unnamed`/`unnamedplus` options;
+explicit register names keep their meaning. Clipboard contents are read when
+pasting, so external changes are visible without polling during cursor motions.
+
 Textobjects are lexical delimiter/word/paragraph objects. They do not yet use
 tree-sitter to distinguish syntax nodes or delimiters inside comments/strings.
 Regular expressions currently use Neovim's regex syntax.

@@ -94,7 +94,22 @@ local function buffer_text()
   return table.concat(api.nvim_buf_get_lines(0, 0, -1, true), '\n')
 end
 
-local function model()
+local function active_register(parser)
+  if parser.register_name then
+    return parser.register_name
+  end
+  -- getreg()/setreg() with an explicit '"' do not apply 'clipboard'. Resolve
+  -- the default register here so external clipboard changes reach p/P too.
+  local clipboard = vim.opt.clipboard:get()
+  local target = vim.list_contains(clipboard, 'unnamedplus') and '+'
+    or vim.list_contains(clipboard, 'unnamed') and '*'
+  if target and vim.fn.has('clipboard') == 1 then
+    return target
+  end
+  return '"'
+end
+
+local function model(read_register)
   local state = api.nvim_helix_get_state(0)
   local text = buffer_text()
   local e = commands.new(text, 0, {
@@ -108,11 +123,15 @@ local function model()
   end
   parsers[win] = parser
   e.mode = state.extending and 'select' or 'normal'
-  local register_name = parser.register_name or '"'
-  local native_value = vim.fn.getreg(register_name)
-  local saved = registers[register_name]
   e.pending, e.count = parser.pending, parser.count
-  e.register = saved and saved.text == native_value and saved.values or { native_value }
+  -- Clipboard providers can launch a process per read. Only paste/replacement
+  -- needs the old contents; motions and selection changes must not poll them.
+  if read_register and parser.pending == '' then
+    local register_name = active_register(parser)
+    local native_value = vim.fn.getreg(register_name)
+    local saved = registers[register_name]
+    e.register = saved and saved.text == native_value and saved.values or { native_value }
+  end
   e.selections, e.primary = {}, state.primary
   local restore_goals = parser.selections and vim.deep_equal(state.selections, parser.selections)
   for i, s in ipairs(state.selections) do
@@ -166,10 +185,6 @@ local function commit(e, parser, batches)
   parser.selections, parser.goals = selections, {}
   for i, s in ipairs(e.selections) do
     parser.goals[i] = s.goal or false
-  end
-  local register_name = parser.register_name or '"'
-  if register_name ~= '_' and not register_name:match('%u') then
-    registers[register_name] = { values = e.register, text = vim.fn.getreg(register_name) }
   end
 end
 
@@ -440,7 +455,7 @@ function M._dispatch(key, mouse)
     parsers[api.nvim_get_current_win()] = nil
     return 'native'
   end
-  local e, parser, batches = model()
+  local e, parser, batches = model(key == 'p' or key == 'P' or key == 'R')
   if e.pending == 'z' or e.pending == 'Z' then
     local action = view_keys[key]
     e.pending = e.pending == 'Z' and key ~= '<Esc>' and key ~= '<C-c>' and 'Z' or ''
@@ -532,10 +547,10 @@ function M._dispatch(key, mouse)
     end
   end
   local original_register = e.register
-  local register_name = parser.register_name or '"'
   local action = e:input(key)
   commit(e, parser, batches)
   if e.register ~= original_register and #e.register > 0 then
+    local register_name = active_register(parser)
     vim.fn.setreg(register_name, table.concat(e.register, '\n'), 'v')
     if register_name ~= '_' and not register_name:match('%u') then
       registers[register_name] = { values = e.register, text = vim.fn.getreg(register_name) }

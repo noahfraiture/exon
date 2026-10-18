@@ -1254,6 +1254,185 @@ describe('native Helix mode', function()
     eq('oneEXT twoEXT', api.nvim_get_current_line())
   end)
 
+  describe('register paste', function()
+    before_each(function()
+      command('set helix')
+    end)
+
+    it('pastes a deleted line below the target line and retains native undo/redo', function()
+      text({ 'copy me', 'alpha beta', 'omega' })
+      feed('xdll')
+      eq('copy me\n', n.fn.getreg('"'))
+      local before = api.nvim_helix_get_state(0)
+      feed('p')
+      eq({ 'alpha beta', 'copy me', 'omega' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      eq({ 'copy me\n' }, selected())
+      feed('u')
+      eq({ 'alpha beta', 'omega' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      eq(before.selections, api.nvim_helix_get_state(0).selections)
+      feed('U')
+      eq({ 'alpha beta', 'copy me', 'omega' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    end)
+
+    it('pastes a yanked line above the target with P', function()
+      text({ 'copy me', 'alpha beta', 'omega' })
+      feed('xy')
+      api.nvim_win_set_cursor(0, { 2, 3 })
+      feed('P')
+      eq({ 'copy me', 'copy me', 'alpha beta', 'omega' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    end)
+
+    it('infers linewise paste from external text, including characterwise registers', function()
+      for _, case in ipairs({
+        { 'first\nsecond\n', { 'alpha beta', 'first', 'second', 'omega' } },
+        { 'first\r\nsecond\r\n', { 'alpha beta', 'first', 'second', 'omega' } },
+        { 'first\nsecond', { 'alphfirst', 'seconda beta', 'omega' } },
+        { 'word', { 'alphworda beta', 'omega' } },
+      }) do
+        text({ 'alpha beta', 'omega' })
+        n.fn.setreg('a', case[1], 'v')
+        api.nvim_win_set_cursor(0, { 1, 3 })
+        feed('"ap')
+        eq(case[2], api.nvim_buf_get_lines(0, 0, -1, true))
+      end
+    end)
+
+    it('uses newline contents for unnamed clipboard paste and notices external changes', function()
+      exec_lua([[
+        _G.helix_test_clipboard = {{''}, 'v'}
+        _G.helix_test_clipboard_reads = 0
+        local function copy(lines, regtype)
+          _G.helix_test_clipboard = {lines, regtype}
+        end
+        local function paste()
+          _G.helix_test_clipboard_reads = _G.helix_test_clipboard_reads + 1
+          return _G.helix_test_clipboard
+        end
+        vim.g.clipboard = {
+          name = 'Helix paste test',
+          copy = {['+'] = copy, ['*'] = copy},
+          paste = {['+'] = paste, ['*'] = paste},
+        }
+        vim.o.clipboard = 'unnamedplus'
+      ]])
+      text({ 'copy me', 'alpha beta', 'omega' })
+      feed('xd')
+      exec_lua('_G.helix_test_clipboard_reads = 0')
+      feed('ll')
+      eq(0, exec_lua('return _G.helix_test_clipboard_reads'))
+      feed('p')
+      eq('copy me\n', n.fn.getreg('+'))
+      eq({ 'alpha beta', 'copy me', 'omega' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      feed('u')
+      for _, clipboard in ipairs({ { { 'external', '' }, 'v' }, { { 'external', '' }, 'V' } }) do
+        exec_lua('_G.helix_test_clipboard = ...', clipboard)
+        feed('p')
+        eq({ 'alpha beta', 'external', 'omega' }, api.nvim_buf_get_lines(0, 0, -1, true))
+        feed('u')
+      end
+    end)
+
+    it(
+      'uses linewise alignment for every fragment when any fragment ends with a newline',
+      function()
+        text({ 'one', 'two', 'alpha', 'beta', 'end' })
+        api.nvim_helix_set_selections(0, { { 0, 0, 1, 0, false }, { 1, 0, 1, 3, false } }, 1, false)
+        feed('"ay')
+        api.nvim_helix_set_selections(0, { { 2, 1, 2, 2, false }, { 3, 1, 3, 2, false } }, 1, false)
+        feed('"aP')
+        eq(
+          { 'one', 'two', 'one', 'alpha', 'twobeta', 'end' },
+          api.nvim_buf_get_lines(0, 0, -1, true)
+        )
+      end
+    )
+
+    it('aligns to the selected lines, excluding a following line at column zero', function()
+      text({ 'one', 'two', 'three', 'four' })
+      n.fn.setreg('a', 'copy\n', 'v')
+      local ranges = { { 0, 1, 2, 0, true } }
+      api.nvim_helix_set_selections(0, ranges, 1, true)
+      feed('"ap')
+      eq({ 'one', 'two', 'copy', 'three', 'four' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      eq(true, api.nvim_helix_get_state(0).selections[1][5])
+      eq(false, api.nvim_helix_get_state(0).extending)
+      feed('u')
+      eq(ranges, api.nvim_helix_get_state(0).selections)
+      feed('"aP')
+      eq({ 'copy', 'one', 'two', 'three', 'four' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    end)
+
+    it('handles the final line, empty buffers and blank lines without extra blank lines', function()
+      n.fn.setreg('a', 'copy\n', 'v')
+      for _, case in ipairs({
+        { { 'target' }, { 1, 2 }, 'p', { 'target', 'copy' } },
+        { { 'target', '' }, { 2, 0 }, 'p', { 'target', '', 'copy' } },
+        { { 'target', '' }, { 1, 2 }, 'p', { 'target', 'copy', '' } },
+        { { 'target', '' }, { 2, 0 }, 'P', { 'target', 'copy', '' } },
+        { { '' }, { 1, 0 }, 'p', { 'copy' } },
+        { { '' }, { 1, 0 }, 'P', { 'copy' } },
+      }) do
+        text(case[1])
+        api.nvim_win_set_cursor(0, case[2])
+        feed('"a' .. case[3])
+        eq(case[4], api.nvim_buf_get_lines(0, 0, -1, true))
+        feed('u')
+        eq(case[1], api.nvim_buf_get_lines(0, 0, -1, true))
+      end
+    end)
+
+    it('repeats linewise contents for a paste count', function()
+      text({ 'target', 'end' })
+      n.fn.setreg('a', 'copy\n', 'v')
+      feed('"a3p')
+      eq({ 'target', 'copy', 'copy', 'copy', 'end' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      feed('u')
+      eq({ 'target', 'end' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    end)
+
+    it('keeps separate yank fragments and repeats the last for additional selections', function()
+      text({ 'one', 'two', 'alpha', 'beta', 'gamma', 'end' })
+      api.nvim_helix_set_selections(0, { { 0, 0, 1, 0, false }, { 1, 0, 2, 0, false } }, 1, false)
+      feed('"ay')
+      api.nvim_helix_set_selections(0, {
+        { 2, 1, 2, 2, false },
+        { 3, 1, 3, 2, true },
+        { 4, 1, 4, 2, false },
+      }, 2, false)
+      feed('"ap')
+      eq(
+        { 'one', 'two', 'alpha', 'one', 'beta', 'two', 'gamma', 'two', 'end' },
+        api.nvim_buf_get_lines(0, 0, -1, true)
+      )
+      eq({ 'one\n', 'two\n', 'two\n' }, selected())
+      eq(2, api.nvim_helix_get_state(0).primary)
+      eq(true, api.nvim_helix_get_state(0).selections[2][5])
+    end)
+
+    it('combines coincident linewise insertions without losing fragments or selections', function()
+      text({ 'one', 'two', 'target', 'end' })
+      api.nvim_helix_set_selections(0, { { 0, 0, 1, 0, false }, { 1, 0, 2, 0, false } }, 1, false)
+      feed('"ay')
+      local ranges = { { 2, 0, 2, 1, false }, { 2, 3, 2, 4, true } }
+      api.nvim_helix_set_selections(0, ranges, 2, false)
+      feed('"ap')
+      eq({ 'one', 'two', 'target', 'one', 'two', 'end' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      eq({ 'one\n', 'two\n' }, selected())
+      eq(2, api.nvim_helix_get_state(0).primary)
+      feed('u')
+      eq({ 'one', 'two', 'target', 'end' }, api.nvim_buf_get_lines(0, 0, -1, true))
+      eq(ranges, api.nvim_helix_get_state(0).selections)
+    end)
+
+    it('keeps R as a replacement even when the register ends in a newline', function()
+      text({ 'alpha beta', 'end' })
+      n.fn.setreg('a', 'copy\n', 'v')
+      api.nvim_helix_set_selections(0, { { 0, 0, 0, 5, false } }, 1, false)
+      feed('"aR')
+      eq({ 'copy', ' beta', 'end' }, api.nvim_buf_get_lines(0, 0, -1, true))
+    end)
+  end)
+
   it('normalizes selections after external deletion brings gaps together', function()
     text({ 'one two' })
     command('set helix')

@@ -254,6 +254,73 @@ function Engine:paste_values()
   end
   return table.concat(self.register, '\n')
 end
+function Engine:paste(after, count)
+  if #self.register == 0 then
+    return
+  end
+  -- Helix infers linewise paste from the contents, not the command that yanked
+  -- them. One newline-terminated fragment makes the entire paste linewise.
+  local linewise = false
+  for _, value in ipairs(self.register) do
+    linewise = linewise or value:find('[\r\n]$') ~= nil
+  end
+  local groups, destinations = {}, {}
+  for i, s in ipairs(self.selections) do
+    local p, append = after and s.finish or s.start, false
+    if linewise then
+      if after then
+        local head = s.finish > s.start and M.prev(self.text, s.finish) or s.start
+        local _, last, next_line = line_bounds(self.text, head)
+        p, append = next_line, last == next_line
+      else
+        p = line_bounds(self.text, s.start)
+      end
+    end
+    -- Match Helix's fragment distribution: zip with selections, then repeat
+    -- the last fragment. Normalize external line endings to the buffer model.
+    local value =
+      self.register[math.min(i, #self.register)]:gsub('\r\n', '\n'):gsub('\r', '\n'):rep(count or 1)
+    local padding = ''
+    if linewise and (append or #self.text == 0) then
+      -- Neovim's last line has no newline in this snapshot. Materialize the
+      -- boundary when appending, without creating a spurious empty last line.
+      padding = #self.text > 0 and '\n' or ''
+      value = value:gsub('\n$', '')
+    end
+    local group = destinations[p]
+    if not group then
+      group = { start = p, finish = p, value = '', parts = {} }
+      destinations[p], groups[#groups + 1] = group, group
+    end
+    group.parts[#group.parts + 1] = {
+      start = #group.value + #padding,
+      finish = #group.value + #padding + #value,
+      backward = s.backward,
+      index = i,
+    }
+    group.value = group.value .. padding .. value
+  end
+  table.sort(groups, function(a, b)
+    return a.start < b.start
+  end)
+  local values, selections, delta, primary = {}, {}, 0, self.primary
+  for i, group in ipairs(groups) do
+    values[i] = group.value
+    for _, part in ipairs(group.parts) do
+      selections[part.index] = {
+        start = group.start + delta + part.start,
+        finish = group.start + delta + part.finish,
+        backward = part.backward,
+      }
+    end
+    delta = delta + #group.value
+  end
+  -- Multiple selections on one line can have the same insertion point. Apply
+  -- one combined edit there, then restore the individual pasted selections.
+  self:replace(values, false, groups)
+  self.selections, self.primary, self.mode = selections, primary, 'normal'
+  self:normalize()
+end
 function Engine:insert(after, change)
   self.mode = 'insert'
   if change then
@@ -814,14 +881,7 @@ function Engine:input(key)
     elseif key == 'y' then
       self:yank()
     elseif key == 'p' or key == 'P' then
-      if #self.register > 0 then
-        local ranges = {}
-        for i, s in ipairs(self.selections) do
-          local p = key == 'p' and s.finish or s.start
-          ranges[i] = { start = p, finish = p }
-        end
-        self:replace(self:paste_values(), false, ranges)
-      end
+      self:paste(key == 'p', count)
     elseif key == 'R' then
       if #self.register > 0 then
         self:replace(self:paste_values())
