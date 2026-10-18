@@ -109,7 +109,9 @@ that workflow. Keep the `lua` and parser attributes so NixOS/Home Manager can
 wrap the package normally. Parser sources come directly from the pinned
 upstream `cmake.deps/deps.txt`, through `treesitter-parsers.nix`. After changing the upstream base or Nixpkgs lock,
 recheck the recipe's patches, dependencies and parser versions and run
-`nix flake check`. See [NIX.md](NIX.md) for the input/package interface.
+`nix flake check`. The locked wrapper expects `nvim.desktop`; the package
+renames upstream 0.13's desktop file on Linux. Remove that compatibility rename
+when upgrading to a recipe that handles the new name. See [NIX.md](NIX.md) for the input/package interface.
 
 ## Licensing
 

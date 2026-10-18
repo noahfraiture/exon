@@ -29,12 +29,19 @@
               TEST_FILE=test/functional/editor/helix_spec.lua cmake --build . --target functionaltest
             '';
 
-            postInstall = (old.postInstall or "") + ''
-              mkdir -p "$out/share/neovim-helix"
-              cp ${self}/LICENSE.txt ${self}/contrib/helix/LICENSE-helix.vim \
-                ${self}/contrib/helix/init.lua ${self}/contrib/helix/smoke.lua \
-                "$out/share/neovim-helix/"
-            '';
+            postInstall =
+              (old.postInstall or "")
+              + pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
+                # The locked Nixpkgs wrapper still expects the pre-0.13 filename.
+                mv "$out/share/applications/org.neovim.nvim.desktop" \
+                  "$out/share/applications/nvim.desktop"
+              ''
+              + ''
+                mkdir -p "$out/share/neovim-helix"
+                cp ${self}/LICENSE.txt ${self}/contrib/helix/LICENSE-helix.vim \
+                  ${self}/contrib/helix/init.lua ${self}/contrib/helix/smoke.lua \
+                  "$out/share/neovim-helix/"
+              '';
 
             postInstallCheck = (old.postInstallCheck or "") + ''
               for exon_command in exon ex nvim; do
