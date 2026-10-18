@@ -419,7 +419,14 @@ void helix_mouse_selection(bool release)
     }
     HelixSelection selection = { .start = start, .end = next_position(curbuf, end),
                                  .backward = backward };
+    handle_T window = curwin->handle;
+    handle_T buffer = curbuf->handle;
     end_visual_mode();
+    // ModeChanged callbacks can destroy the source buffer/window and its state.
+    if (curwin->handle != window || curbuf->handle != buffer) {
+      return;
+    }
+    hw = window_state(curwin, true);
     redraw_later(curwin, UPD_INVERTED);
     store_selections(curwin, hw, &selection, 1, 0, false);
     render_selections(curwin, hw);

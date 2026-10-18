@@ -140,6 +140,26 @@ describe('native Helix mode', function()
         eq({ 'été' }, selected())
       end)
 
+      it('allows a mode-change callback to wipe the dragged buffer on release', function()
+        text({ 'one two three' })
+        command('set helix')
+        local buffer = api.nvim_get_current_buf()
+        exec_lua([[
+          vim.api.nvim_create_autocmd('ModeChanged', {
+            pattern = 'v:n', once = true,
+            callback = function() vim.cmd('bwipeout!') end,
+          })
+        ]])
+        mouse('left', 'press', 0, 4)
+        mouse('left', 'drag', 0, 6)
+        mouse('left', 'release', 0, 6)
+        eq(false, api.nvim_buf_is_valid(buffer))
+        eq({ '' }, api.nvim_buf_get_lines(0, 0, -1, true))
+        eq('h', api.nvim_get_mode().mode)
+        feed('iX<Esc>')
+        eq('X', api.nvim_get_current_line())
+      end)
+
       it('adopts double-clicked words and triple-clicked lines on release', function()
         text({ 'one two three', 'four five' })
         command('set helix mousetime=10000')
