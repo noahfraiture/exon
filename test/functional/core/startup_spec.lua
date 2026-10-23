@@ -369,8 +369,8 @@ describe('startup', function()
       end)
 
       assert_l_out(function(out)
-        -- Accept scripts=2 for PUC Lua where `vim._core.util` is sourced from disk instead of a preload blob.
-        return matches('updatecount=0 shadafile=NONE loadplugins=false scripts=[12]\n', out)
+        -- PUC Lua records the builtin util and Helix defaults as sourced scripts.
+        return matches('updatecount=0 shadafile=NONE loadplugins=false scripts=[123]\n', out)
       end, nil, nil, '-', script)
 
       -- User can override.
