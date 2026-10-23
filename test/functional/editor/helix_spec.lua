@@ -736,13 +736,29 @@ describe('native Helix mode', function()
   )
 
   it('accepts a built-in LSP completion at every compatible selection', function()
+    t.finally(function()
+      exec_lua([[
+        for _, client in ipairs(vim.lsp.get_clients({name='helix-completion'})) do
+          client:stop(true)
+        end
+      ]])
+      t.retry(100, 3000, function()
+        eq(0, exec_lua([[return #vim.lsp.get_clients({name='helix-completion'})]]))
+      end)
+    end)
     text({ '(a) (longer)' })
     command('set helix completeopt=menu,menuone,noselect')
     exec_lua([[
       vim.lsp.start({
         name = 'helix-completion', root_dir = vim.uv.cwd(),
-        cmd = function()
+        cmd = function(dispatchers)
           local closed = false
+          local function close()
+            if not closed then
+              closed = true
+              dispatchers.on_exit(0, 0)
+            end
+          end
           return {
             request = function(method, _, callback)
               if method == 'initialize' then
@@ -754,9 +770,12 @@ describe('native Helix mode', function()
               end
               return true, 1
             end,
-            notify = function() return true end,
+            notify = function(method)
+              if method == 'exit' then close() end
+              return true
+            end,
             is_closing = function() return closed end,
-            terminate = function() closed = true end,
+            terminate = close,
           }
         end,
         on_attach = function(client, buf)
