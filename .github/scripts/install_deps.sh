@@ -13,6 +13,15 @@ done
 OS=$(uname -s)
 ARCH=$(uname -m)
 if [[ $OS == Linux ]]; then
+  # The hosted runner's Azure mirror can stall package downloads for minutes.
+  # Keep this override confined to disposable GitHub runners.
+  if [[ ${RUNNER_ENVIRONMENT:-} == github-hosted ]]; then
+    for exon_apt_source in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+      if [[ -f $exon_apt_source ]]; then
+        sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' "$exon_apt_source"
+      fi
+    done
+  fi
   sudo apt-get update
   sudo apt-get install -y build-essential cmake curl gettext ninja-build
 
