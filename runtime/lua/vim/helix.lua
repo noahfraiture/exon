@@ -5,6 +5,14 @@ local api = vim.api
 local commands = require('vim.helix.commands')
 local defaults = require('vim.helix.defaults')
 local M = { compat = require('vim.helix.compat') }
+--- @class vim.helix.Parser
+--- @field buffer? integer
+--- @field pending string
+--- @field count string
+--- @field register_name? string
+--- @field selections? table[]
+--- @field goals? table<integer, integer>
+--- @type table<integer, vim.helix.Parser>
 local parsers = {}
 local registers = {}
 local last_search
@@ -20,7 +28,10 @@ end
 --- Consume the Helix count once; Vim's v:count does not represent this mode.
 --- @private
 function M._run_builtin(lhs)
-  local binding = assert(defaults.bindings[lhs], 'Unknown Helix command: ' .. lhs)
+  local binding = defaults.bindings[lhs]
+  if not binding then
+    error('Unknown Helix command: ' .. lhs)
+  end
   local parser = parsers[api.nvim_get_current_win()]
   local count = parser and parser.buffer == api.nvim_get_current_buf() and tonumber(parser.count)
     or 1
@@ -48,6 +59,7 @@ function M.setup(opts)
   vim.validate('surrounds', opts.surrounds, 'table', true)
   vim.validate('keymaps', opts.keymaps, 'table', true)
   for key in pairs(opts) do
+    --- @cast key string
     assert(
       key == 'enabled' or key == 'surrounds' or key == 'keymaps',
       'Unknown Helix option: ' .. tostring(key)
@@ -83,7 +95,7 @@ function M.setup(opts)
     configuration.surrounds = vim.deepcopy(opts.surrounds)
   end
   for lhs, rhs in pairs(opts.keymaps or {}) do
-    vim.keymap.set('h', lhs, rhs == false and '<Nop>' or rhs, { silent = true })
+    vim.keymap.set('h', lhs, rhs or '<Nop>', { silent = true })
   end
   parsers = {}
   vim.o.helix = opts.enabled ~= false
@@ -115,7 +127,7 @@ local function active_register(parser)
   end
   -- getreg()/setreg() with an explicit '"' do not apply 'clipboard'. Resolve
   -- the default register here so external clipboard changes reach p/P too.
-  local clipboard = vim.opt.clipboard:get()
+  local clipboard = vim.opt.clipboard:get() --[[@as string[] ]]
   local target = vim.list_contains(clipboard, 'unnamedplus') and '+'
     or vim.list_contains(clipboard, 'unnamed') and '*'
   if target and vim.fn.has('clipboard') == 1 then
@@ -154,7 +166,7 @@ local function model(read_register)
       start = commands.offset(text, s[1], s[2]),
       finish = commands.offset(text, s[3], s[4]),
       backward = s[5] or nil,
-      goal = restore_goals and parser.goals[i] or nil,
+      goal = restore_goals and parser.goals and parser.goals[i] or nil,
     }
   end
   e:normalize()
@@ -261,7 +273,9 @@ function M.delete_surround(key, count)
 end
 
 local function line_operation(command, count)
-  local state, ranges = api.nvim_helix_get_state(0), {}
+  local state = api.nvim_helix_get_state(0)
+  --- @type [integer, integer][]
+  local ranges = {}
   local last_line = api.nvim_buf_line_count(0)
   for _, selection in ipairs(state.selections) do
     local first = selection[1] + 1
@@ -320,9 +334,11 @@ end
 function M.search(pattern, backward, count)
   vim.regex(pattern)
   local e, parser, batches = model()
-  local matches, offset = {}, 0
+  --- @type {start: integer, finish: integer}[]
+  local matches = {}
+  local offset = 0
   while offset <= #e.text do
-    local found = vim.fn.matchstrpos(e.text, pattern, offset, 1)
+    local found = vim.fn.matchstrpos(e.text, pattern, offset, 1) --[[@as [string, integer, integer] ]]
     local a, b = found[2], found[3]
     if a < 0 then
       break
@@ -360,7 +376,7 @@ function M.search(pattern, backward, count)
         target = target or 1
       end
       target = ((target - 1 + (backward and -1 or 1) * ((count or 1) - 1)) % #matches) + 1
-      local match = matches[target]
+      local match = assert(matches[target])
       if e.mode == 'select' then
         local anchor = selection.backward and commands.prev(e.text, selection.finish)
           or selection.start
@@ -506,7 +522,7 @@ function M._dispatch(key, mouse)
       parser.pending = 'register'
       return
     elseif key == '/' or key == '?' then
-      local count = tonumber(e.count) or 1
+      local count = (tonumber(e.count) or 1) --[[@as integer]]
       parser.count = ''
       local win, buf = api.nvim_get_current_win(), api.nvim_get_current_buf()
       vim.ui.input({ prompt = key }, function(pattern)
@@ -525,7 +541,7 @@ function M._dispatch(key, mouse)
       return
     elseif key == 'n' or key == 'N' then
       if last_search then
-        local count = tonumber(e.count) or 1
+        local count = (tonumber(e.count) or 1) --[[@as integer]]
         parser.count = ''
         local original = last_search
         local backward = original.backward
@@ -537,7 +553,7 @@ function M._dispatch(key, mouse)
       end
       return
     elseif key == '*' then
-      local s = e.selections[e.primary]
+      local s = assert(e.selections[e.primary])
       local value = e.text:sub(s.start + 1, s.finish)
       if value ~= '' then
         M.search([[\V]] .. value:gsub('\\', '\\\\'), false)
@@ -551,7 +567,7 @@ function M._dispatch(key, mouse)
       parser.register_name = nil
       return 'native_insert'
     elseif key == '>' or key == '<' or key == 'J' then
-      local count = tonumber(e.count) or 1
+      local count = (tonumber(e.count) or 1) --[[@as integer]]
       parser.count, parser.pending, parser.register_name = '', '', nil
       if key == 'J' then
         M.join(count)
@@ -571,11 +587,12 @@ function M._dispatch(key, mouse)
   local original_register = e.register
   local action = e:input(key)
   commit(e, parser, batches)
-  if e.register ~= original_register and #e.register > 0 then
+  local current_register = e.register
+  if current_register ~= original_register and #current_register > 0 then
     local register_name = active_register(parser)
-    vim.fn.setreg(register_name, table.concat(e.register, '\n'), 'v')
+    vim.fn.setreg(register_name, table.concat(current_register, '\n'), 'v')
     if register_name ~= '_' and not register_name:match('%u') then
-      registers[register_name] = { values = e.register, text = vim.fn.getreg(register_name) }
+      registers[register_name] = { values = current_register, text = vim.fn.getreg(register_name) }
     end
   end
   if e.pending == '' and e.count == '' then
@@ -638,6 +655,7 @@ api.nvim_create_autocmd('OptionSet', {
 -- Bracketed paste has one transaction and one value per selection. Preserve
 -- the existing paste handler for ordinary Neovim and special plugin buffers.
 local native_paste = vim.paste
+--- @type string[]?
 local paste_chunks
 local paste_target
 vim.paste = function(lines, phase)
@@ -653,7 +671,6 @@ vim.paste = function(lines, phase)
   then
     return native_paste(lines, phase)
   end
-  local state = api.nvim_helix_get_state(0)
   local mode = api.nvim_get_mode().mode
   if not (mode == 'n' or mode:sub(1, 1) == 'h') then
     return native_paste(lines, phase)

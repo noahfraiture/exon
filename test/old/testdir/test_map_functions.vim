@@ -577,10 +577,12 @@ func Test_maplist()
   func s:ClearMappingsAbbreviations()
     mapclear | nmapclear | vmapclear | xmapclear | smapclear | omapclear
     mapclear!  | imapclear | lmapclear | cmapclear | tmapclear
+    lua for _, map in ipairs(vim.api.nvim_get_keymap('h')) do vim.keymap.del('h', map.lhs) end
     mapclear <buffer> | nmapclear <buffer> | vmapclear <buffer>
     xmapclear <buffer> | smapclear <buffer> | omapclear <buffer>
     mapclear! <buffer> | imapclear <buffer> | lmapclear <buffer>
     cmapclear <buffer> | tmapclear <buffer>
+    lua for _, map in ipairs(vim.api.nvim_buf_get_keymap(0, 'h')) do vim.keymap.del('h', map.lhs, { buffer = 0 }) end
     abclear | abclear <buffer>
   endfunc
 
@@ -605,6 +607,7 @@ func Test_maplist()
   nmap j w
   xmap k w
   smap l w
+  call nvim_set_keymap('h', 'helix', 'w', {})
   map abc <Nop>
   nmap <M-j> x
   nmap <M-Space> y
@@ -615,9 +618,9 @@ func Test_maplist()
 
   " Get a list of the mappings with the ':map' commands.
   " Check maplist() return a list of the same size.
-  call assert_equal(13, len(maplist()))
+  call assert_equal(14, len(maplist()))
   call assert_equal(3, len(maplist(v:true)))
-  call assert_equal(13, len(maplist(v:false)))
+  call assert_equal(14, len(maplist(v:false)))
 
   " collect all the current maps using :map commands
   let maps_command = []
@@ -625,6 +628,7 @@ func Test_maplist()
   call s:AddMaps(split(execute('map!'), '\n'), maps_command)
   call s:AddMaps(split(execute('tmap'), '\n'), maps_command)
   call s:AddMaps(split(execute('lmap'), '\n'), maps_command)
+  call extend(maps_command, nvim_get_keymap('h'))
 
   " Use maplist to get all the maps
   let maps_maplist = maplist()

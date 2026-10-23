@@ -12,7 +12,11 @@ local function copy(t)
   return out
 end
 M.copy = copy
-local indexed_text, line_starts
+local indexed_text
+--- @type table<integer, integer>
+local line_starts = { 0 }
+--- @param text string
+--- @return table<integer, integer>
 local function index(text)
   if indexed_text == text then
     return line_starts
@@ -31,7 +35,9 @@ end
 local function continuation(b)
   return b and b >= 128 and b < 192
 end
-local grapheme_text, following, preceding, boundaries
+local grapheme_text
+--- @type table<integer, integer>, table<integer, integer>, integer[]
+local following, preceding, boundaries = {}, {}, { 0 }
 local function graphemes(text)
   if grapheme_text == text then
     return
@@ -151,7 +157,9 @@ function M.new(text, position, opts)
 end
 function Engine:cursor(p)
   p = M.boundary(self.text, p)
-  self.selections, self.primary = { { start = p, finish = M.next(self.text, p) } }, 1
+  --- @type table<integer, table>
+  local selections = { { start = p, finish = M.next(self.text, p) } }
+  self.selections, self.primary = selections, 1
 end
 function Engine:head(s)
   return s.backward and s.start or (s.finish > s.start and M.prev(self.text, s.finish) or s.start)
@@ -228,7 +236,8 @@ function Engine:replace(values, insertion, ranges)
     if e.primary then
       primary = i
     end
-    delta, previous = delta + #e.value - (e.finish - e.start), e.finish
+    delta = (delta + #e.value - (e.finish - e.start)) --[[@as integer]]
+    previous = e.finish --[[@as integer]]
   end
   chunks[#chunks + 1] = self.text:sub(previous + 1)
   local text = table.concat(chunks)
@@ -493,11 +502,11 @@ local function delimiters(key, custom)
   local pair = custom and (custom[key] or custom[open])
   return pair and pair[1] or open, pair and pair[2] or opens[open] or open
 end
-local function escaped(text, index)
+local function escaped(text, position)
   local n = 0
-  index = index - 1
-  while index > 0 and text:sub(index, index) == '\\' do
-    n, index = n + 1, index - 1
+  position = position - 1
+  while position > 0 and text:sub(position, position) == '\\' do
+    n, position = n + 1, position - 1
   end
   return n % 2 == 1
 end
@@ -869,7 +878,8 @@ function Engine:input(key)
     -- Unknown prefixes are canceled; they never become native Vim operators.
   else
     if key:match('^%d$') then
-      self.count = tostring(math.min((tonumber(self.count) or 0) * 10 + tonumber(key), 10000))
+      self.count =
+        tostring(math.min((tonumber(self.count) or 0) * 10 + assert(tonumber(key)), 10000))
       return
     end
     if

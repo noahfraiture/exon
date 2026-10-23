@@ -15,7 +15,10 @@ local function lsp(method)
   end
 end
 
+--- @param direction integer
+--- @param boundary? boolean
 local function diagnostic(direction, boundary)
+  --- @param count integer
   return function(count)
     local opts = {
       count = direction * (boundary and vim._maxint or count),
@@ -27,6 +30,7 @@ local function diagnostic(direction, boundary)
   end
 end
 
+--- @type table<string, [fun(count: integer), string]>
 M.bindings = {
   ['[d'] = { diagnostic(-1), 'Previous diagnostic' },
   [']d'] = { diagnostic(1), 'Next diagnostic' },

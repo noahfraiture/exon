@@ -190,6 +190,9 @@ describe('vim._core', function()
       env = { VIMRUNTIME = 'non-existent' },
     }
 
+    t.eq('', n.eval('v:errmsg'))
+    t.eq('Next diagnostic', n.exec_lua([[return vim.fn.maparg(']d', 'h', false, true).desc]]))
+
     -- `vim.hl` is NOT a builtin module.
     t.matches("^module 'vim%.hl' not found:", t.pcall_err(n.exec_lua, [[require('vim.hl')]]))
 
@@ -228,6 +231,7 @@ describe('vim._core', function()
       'vim._init_packages',
       'vim.filetype',
       'vim.fs',
+      'vim.helix.defaults',
       'vim.inspect',
       'vim.keymap',
       'vim.loader',

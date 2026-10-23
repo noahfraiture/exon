@@ -8,7 +8,10 @@ local which_key_patched = false
 --- @param opts? table Ordinary which-key setup options.
 --- @return table opts A copy with h-mode triggers included.
 function M.which_key(opts)
+  -- Optional plugin modules are supplied by the user's runtime.
+  --- @diagnostic disable-next-line: unresolved-require
   local util = require('which-key.util')
+  --- @diagnostic disable-next-line: unresolved-require
   local state = require('which-key.state')
   if not which_key_patched then
     if util.mapmode('h') ~= 'h' then

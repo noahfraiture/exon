@@ -86,6 +86,8 @@ pub fn nvim_gen_sources(
             gen_step.addFileArg(b.path(b.fmt("runtime/lua/vim/{s}.lua", .{n})));
             gen_step.addArg(b.fmt("vim.{s}", .{n}));
         }
+        gen_step.addFileArg(b.path("runtime/lua/vim/helix/defaults.lua"));
+        gen_step.addArg("vim.helix.defaults");
 
         // Dynamically add all Lua _core/ modules (like CMakeLists.txt does)
         const io = b.graph.io;

@@ -350,6 +350,7 @@ set(LUA_INIT_PACKAGES_MODULE_SOURCE ${NVIM_RUNTIME_DIR}/lua/vim/_init_packages.l
 # Must be item 2 in `builtin_modules`, for `--luamod-dev`.
 set(LUA_INSPECT_MODULE_SOURCE ${NVIM_RUNTIME_DIR}/lua/vim/inspect.lua)
 set(LUA_KEYMAP_MODULE_SOURCE ${NVIM_RUNTIME_DIR}/lua/vim/keymap.lua)
+set(LUA_HELIX_DEFAULTS_MODULE_SOURCE ${NVIM_RUNTIME_DIR}/lua/vim/helix/defaults.lua)
 set(LUA_LOADER_MODULE_SOURCE ${NVIM_RUNTIME_DIR}/lua/vim/loader.lua)
 set(LUA_TEXT_MODULE_SOURCE ${NVIM_RUNTIME_DIR}/lua/vim/text.lua)
 set(LUA_TTY_MODULE_SOURCE ${NVIM_RUNTIME_DIR}/lua/vim/tty.lua)
@@ -652,6 +653,7 @@ add_custom_command(
       ${LUA_FS_MODULE_SOURCE} "vim.fs"
       ${LUA_F_MODULE_SOURCE} "vim.F"
       ${LUA_KEYMAP_MODULE_SOURCE} "vim.keymap"
+      ${LUA_HELIX_DEFAULTS_MODULE_SOURCE} "vim.helix.defaults"
       ${LUA_LOADER_MODULE_SOURCE} "vim.loader"
       ${LUA_TEXT_MODULE_SOURCE} "vim.text"
       ${LUA_TTY_MODULE_SOURCE} "vim.tty"
@@ -664,6 +666,7 @@ add_custom_command(
     ${LUA_FS_MODULE_SOURCE}
     ${LUA_F_MODULE_SOURCE}
     ${LUA_KEYMAP_MODULE_SOURCE}
+    ${LUA_HELIX_DEFAULTS_MODULE_SOURCE}
     ${LUA_LOADER_MODULE_SOURCE}
     ${LUA_TEXT_MODULE_SOURCE}
     ${LUA_TTY_MODULE_SOURCE}

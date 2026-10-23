@@ -15,6 +15,7 @@ local options_list = {
   },
   {
     header = N_ 'moving around, searching and patterns',
+    { 'helix', N_ 'enable native Helix selection-first editing' },
     { 'whichwrap', N_ 'list of flags specifying which commands wrap to another line' },
     {
       'startofline',
