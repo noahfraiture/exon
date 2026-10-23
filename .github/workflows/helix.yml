@@ -55,6 +55,8 @@ jobs:
         run: TEST_FILE=test/functional/plugin/lsp/completion_spec.lua make functionaltest
       - name: Pinned plugin workflows in native Helix mode
         timeout-minutes: 5
+        env:
+          VIMRUNTIME: ${{ github.workspace }}/runtime
         run: ./build/bin/nvim --headless -u NONE -i NONE -l contrib/helix/plugin-smoke.lua
       - name: Package and test the installed binary and configuration
         run: contrib/helix/package.sh build "$RUNNER_TEMP/neovim-helix-${{ runner.os }}-${{ runner.arch }}"
